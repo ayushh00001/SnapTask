@@ -238,7 +238,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           onSuccess={async (data: TaskFormData) => {
             const supabase = getSupabase()
             const { data: userData } = await supabase.auth.getUser()
-            const { data: inserted, error } = await supabase.from('tasks').insert({
+            if (!userData.user) { toast.error('Not authenticated'); return }
+            const { error } = await supabase.from('tasks').insert({
               project_id: id,
               phase_id: data.phase_id,
               title: data.title,
@@ -248,16 +249,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               assignee_id: data.assignee_id,
               due_date: data.due_date,
               estimated_hours: data.estimated_hours,
-              created_by: userData.user?.id,
-            }).select()
-            if (error || !inserted || inserted.length === 0) {
-              toast.error(error?.message || 'Failed to create task')
-              return
-            }
+              created_by: userData.user.id,
+            })
+            if (error) { toast.error('Task failed: ' + error.message); return }
             toast.success('Task added')
             setShowTaskForm(false)
-            const member = members.find(m => m.id === inserted[0].assignee_id)
-            setTasks(prev => [...prev, { ...inserted[0], assignee: member || null } as ProjectTask])
+            await refreshTasks()
           }}
         />
       </Modal>
