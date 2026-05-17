@@ -130,6 +130,18 @@ export interface AiPrediction {
   created_at: string
 }
 
+export interface AppNotification {
+  id: string
+  user_id: string
+  org_id: string
+  title: string
+  message: string
+  type: 'info' | 'success' | 'warning' | 'error' | 'assignment' | 'completion'
+  link: string | null
+  read: boolean
+  created_at: string
+}
+
 export interface ActivityLog {
   id: string
   org_id: string

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 import type { Organization, Profile } from '@/lib/types'
 
 const navItems = [
@@ -53,6 +54,10 @@ export function Sidebar() {
             <p className="text-[10px] text-white/40 font-medium">Project Management</p>
           </div>
         </Link>
+      </div>
+
+      <div className="px-3 pt-2 pb-1">
+        <NotificationBell />
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5">

@@ -12,6 +12,8 @@ import { Select } from '@/components/ui/select'
 import { TaskCard } from '@/components/tasks/task-card'
 import { NewTaskForm } from '@/components/tasks/new-task-form'
 import { AiInsights } from '@/components/ai/ai-insights'
+import { AiAgentChat } from '@/components/ai/ai-agent-chat'
+import { notifyTaskCompleted } from '@/lib/notifications'
 import type { Project, ProjectPhase, ProjectTask, Profile } from '@/lib/types'
 import { statusColor } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -34,7 +36,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true)
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
+  const [showAiAgent, setShowAiAgent] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null)
+  const [orgId, setOrgId] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const loadTasks = async (supabase: ReturnType<typeof createClient>) => {
+    const [phasesRes, tasksRes] = await Promise.all([
+      supabase.from('project_phases').select('*').eq('project_id', id).order('order'),
+      supabase.from('tasks').select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)').eq('project_id', id),
+    ])
+    setPhases(phasesRes.data || [])
+    setTasks(tasksRes.data || [])
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -43,17 +57,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       if (!projectData) { router.push('/projects'); return }
       setProject(projectData)
 
-      const [phasesRes, tasksRes] = await Promise.all([
-        supabase.from('project_phases').select('*').eq('project_id', id).order('order'),
-        supabase.from('tasks').select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)').eq('project_id', id),
-      ])
-      setPhases(phasesRes.data || [])
-      setTasks(tasksRes.data || [])
+      await loadTasks(supabase)
 
       const { data: userData } = await supabase.auth.getUser()
       if (userData.user) {
         const { data: orgs } = await supabase.from('org_members').select('org_id').eq('user_id', userData.user.id).limit(1)
         if (orgs?.length) {
+          setOrgId(orgs[0].org_id)
           const { data: memberProfiles } = await supabase
             .from('org_members')
             .select('user_id')
@@ -79,12 +89,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [id, router])
+  }, [id, router, refreshKey])
 
   const handleDrop = async (taskId: string, newStatus: string) => {
     const supabase = createClient()
+    const task = tasks.find(t => t.id === taskId)
     await supabase.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', taskId)
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as ProjectTask['status'] } : t))
+
+    if (newStatus === 'done' && task && orgId) {
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData.user) {
+        const memberIds = members.map(m => m.id)
+        notifyTaskCompleted(taskId, task.title, id, userData.user.id, orgId, memberIds)
+      }
+    }
   }
 
   const handleDeleteTask = async (taskId: string) => {
@@ -120,6 +139,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           {project.description && <p className="mt-1 text-gray-500">{project.description}</p>}
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setShowAiAgent(true)} className="!bg-brand-500/10 !text-brand-400 !border-brand-500/20 hover:!bg-brand-500/20">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            AI Agent
+          </Button>
           <Button variant="secondary" onClick={() => setShowAiModal(true)}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -180,6 +205,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           selectedPhase={selectedPhase}
           onSuccess={() => setShowTaskForm(false)}
         />
+      </Modal>
+
+      <Modal open={showAiAgent} onClose={() => setShowAiAgent(false)} title="AI Agent Chat" subtitle="Ask AI to assign tasks, review progress, and give instructions" className="max-w-xl">
+        <AiAgentChat project={project} tasks={tasks} members={members} onAssign={() => setRefreshKey(k => k + 1)} />
       </Modal>
 
       <Modal open={showAiModal} onClose={() => setShowAiModal(false)} title="AI Insights" className="max-w-2xl">

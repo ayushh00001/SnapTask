@@ -261,7 +261,28 @@ CREATE POLICY "Members can manage comments" ON task_comments FOR ALL USING (
   EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_comments.task_id AND public.can_access_project(tasks.project_id))
 );
 
--- 9. Invites
+-- 9. Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  org_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'error', 'assignment', 'completion')),
+  link TEXT,
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "System can create notifications" ON notifications FOR INSERT WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
+
+-- 10. Invites
 CREATE TABLE IF NOT EXISTS invites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
@@ -276,7 +297,7 @@ CREATE TABLE IF NOT EXISTS invites (
 ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins can manage invites" ON invites FOR ALL USING (public.is_org_admin(org_id));
 
--- 10. AI predictions
+-- 11. AI predictions
 CREATE TABLE IF NOT EXISTS ai_predictions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
@@ -291,7 +312,7 @@ ALTER TABLE ai_predictions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Members can view predictions" ON ai_predictions FOR SELECT USING (public.can_access_project(project_id));
 CREATE POLICY "Members can create predictions" ON ai_predictions FOR INSERT WITH CHECK (public.can_access_project(project_id));
 
--- 11. Subscriptions
+-- 12. Subscriptions
 CREATE TABLE IF NOT EXISTS org_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE UNIQUE NOT NULL,
@@ -306,7 +327,7 @@ CREATE TABLE IF NOT EXISTS org_subscriptions (
 ALTER TABLE org_subscriptions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Members can view subscription" ON org_subscriptions FOR SELECT USING (public.is_org_member(org_id));
 
--- 12. Activity log
+-- 13. Activity log
 CREATE TABLE IF NOT EXISTS activity_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
@@ -321,7 +342,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Members can view activity logs" ON activity_logs FOR SELECT USING (public.is_org_member(org_id));
 
--- 13. Waitlist
+-- 14. Waitlist
 CREATE TABLE IF NOT EXISTS waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
