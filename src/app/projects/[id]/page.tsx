@@ -53,10 +53,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const supabase = getSupabase()
     const [phasesRes, tasksRes] = await Promise.all([
       supabase.from('project_phases').select('*').eq('project_id', id).order('order'),
-      supabase.from('tasks').select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)').eq('project_id', id),
+      supabase.from('tasks').select('*, assignee:assignee_id(*)').eq('project_id', id),
     ])
     setPhases(phasesRes.data || [])
-    setTasks(tasksRes.data || [])
+    if (tasksRes.error) console.error('Task fetch error:', tasksRes.error)
+    const loaded = tasksRes.data || []
+    setTasks(loaded)
   }
 
   useEffect(() => {
@@ -99,7 +101,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     const channel = supabase.channel(`project-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, payload => {
-        if (payload.eventType === 'UPDATE') {
+        if (payload.eventType === 'INSERT') {
+          setTasks(prev => [...prev, payload.new as ProjectTask])
+        } else if (payload.eventType === 'UPDATE') {
           setTasks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } as ProjectTask : t))
         } else if (payload.eventType === 'DELETE') {
           setTasks(prev => prev.filter(t => t.id !== payload.old.id))
