@@ -8,6 +8,20 @@ import { Select } from '@/components/ui/select'
 import type { ProjectPhase, Profile } from '@/lib/types'
 import { toast } from 'sonner'
 
+export interface CreateTaskResult {
+  id: string
+  project_id: string
+  phase_id: string | null
+  title: string
+  description: string | null
+  priority: string
+  status: string
+  assignee_id: string | null
+  due_date: string | null
+  estimated_hours: number | null
+  created_by: string | null
+}
+
 export function NewTaskForm({
   projectId,
   phases,
@@ -19,7 +33,7 @@ export function NewTaskForm({
   phases: ProjectPhase[]
   members: Profile[]
   selectedPhase: string | null
-  onSuccess: () => void
+  onSuccess: (task: CreateTaskResult) => void
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -37,7 +51,7 @@ export function NewTaskForm({
     setLoading(true)
     const supabase = createClient()
     const { data: userData } = await supabase.auth.getUser()
-    const { error } = await supabase.from('tasks').insert({
+    const { data: inserted, error } = await supabase.from('tasks').insert({
       project_id: projectId,
       phase_id: phaseId || null,
       title: title.trim(),
@@ -48,10 +62,11 @@ export function NewTaskForm({
       created_by: userData.user?.id,
       due_date: dueDate || null,
       estimated_hours: hours ? parseFloat(hours) : null,
-    })
+    }).select()
     if (error) { toast.error(error.message); setLoading(false); return }
+    if (!inserted || inserted.length === 0) { toast.error('Task was not created'); setLoading(false); return }
     toast.success('Task added')
-    onSuccess()
+    onSuccess(inserted[0])
   }
 
   return (

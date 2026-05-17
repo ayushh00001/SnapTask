@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use, useCallback } from 'react'
+import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -17,6 +17,8 @@ import { notifyTaskCompleted } from '@/lib/notifications'
 import type { Project, ProjectPhase, ProjectTask, Profile } from '@/lib/types'
 import { statusColor } from '@/lib/utils'
 import { toast } from 'sonner'
+
+type SupabaseClient = ReturnType<typeof createClient>
 
 const statusColumns = [
   { key: 'backlog', label: 'Backlog' },
@@ -39,19 +41,25 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showAiAgent, setShowAiAgent] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
+  const supabaseRef = useRef<SupabaseClient | null>(null)
 
-  const refreshTasks = useCallback(async () => {
-    const supabase = createClient()
+  const getSupabase = (): SupabaseClient => {
+    if (!supabaseRef.current) supabaseRef.current = createClient()
+    return supabaseRef.current
+  }
+
+  const refreshTasks = async () => {
+    const supabase = getSupabase()
     const [phasesRes, tasksRes] = await Promise.all([
       supabase.from('project_phases').select('*').eq('project_id', id).order('order'),
       supabase.from('tasks').select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)').eq('project_id', id),
     ])
     setPhases(phasesRes.data || [])
     setTasks(tasksRes.data || [])
-  }, [id])
+  }
 
   useEffect(() => {
-    const supabase = createClient()
+    const supabase = getSupabase()
     async function load() {
       const { data: projectData } = await supabase.from('projects').select('*').eq('id', id).single()
       if (!projectData) { router.push('/projects'); return }
@@ -82,15 +90,25 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     load()
 
     const channel = supabase.channel(`project-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, payload => {
-        if (payload.eventType === 'INSERT') refreshTasks()
-        else if (payload.eventType === 'UPDATE') setTasks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } as ProjectTask : t))
-        else if (payload.eventType === 'DELETE') setTasks(prev => prev.filter(t => t.id !== payload.old.id))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, async payload => {
+        if (payload.eventType === 'INSERT') {
+          const sup = getSupabase()
+          const { data } = await sup.from('tasks')
+            .select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)')
+            .eq('id', payload.new.id)
+            .single()
+          if (data) setTasks(prev => [...prev, data as ProjectTask])
+          else refreshTasks()
+        } else if (payload.eventType === 'UPDATE') {
+          setTasks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } as ProjectTask : t))
+        } else if (payload.eventType === 'DELETE') {
+          setTasks(prev => prev.filter(t => t.id !== payload.old.id))
+        }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [id, router, refreshTasks])
+  }, [id, router])
 
   const handleDrop = async (taskId: string, newStatus: string) => {
     const supabase = createClient()
@@ -224,7 +242,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           phases={phases}
           members={members}
           selectedPhase={selectedPhase}
-          onSuccess={() => { setShowTaskForm(false); refreshTasks() }}
+          onSuccess={(task) => {
+            setShowTaskForm(false)
+            const member = members.find(m => m.id === task.assignee_id)
+            setTasks(prev => [...prev, { ...task, assignee: member || null } as ProjectTask])
+          }}
         />
       </Modal>
 
