@@ -1,7 +1,5 @@
-'use server'
-
+import { NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null
@@ -46,11 +44,11 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
   if (q.includes('assign') || q.includes('unassigned') || q.includes('who')) {
     if (unassigned.length === 0) return 'All tasks have assignees. Great job!'
     if (context.members.length === 0) return 'No team members yet. Invite people first.'
-    const suggestions = unassigned.slice(0, 3).map(t => {
+    const suggestions = unassigned.slice(0, 5).map(t => {
       const m = context.members[Math.floor(Math.random() * context.members.length)]
       return `• "${t.title}" → ${m.name}`
     }).join('\n')
-    return `Here are my suggested assignments:\n${suggestions}\n\nSay "assign them" to confirm and I'll update the database.`
+    return `Here are my suggested assignments:\n${suggestions}\n\nSay **"assign them"** to confirm and I'll update the database.`
   }
 
   if (q.includes('overdue') || q.includes('behind') || q.includes('delay')) {
@@ -65,7 +63,7 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
   }
 
   if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
-    return `Hello! I'm SnapTask AI Agent. I can:\n• Assign tasks to team members\n• Review project progress\n• Flag overdue items\n• Suggest improvements\n\nWhat would you like me to help with?`
+    return `Hello! I'm SnapTask AI Agent. I can:\n• **Assign tasks** to team members\n• **Review project progress**\n• **Flag overdue items**\n• **Suggest improvements**\n\nWhat would you like me to help with?`
   }
 
   if (q.includes('improve') || q.includes('suggest') || q.includes('advice') || q.includes('recommend')) {
@@ -77,14 +75,19 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
     return `**Suggestions**:\n${tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
   }
 
-  return `I understand you're asking about "${last.content}". I can help with:\n• Task assignment and workload\n• Progress reports and reviews\n• Project insights and suggestions\n• Risk flagging\n\nCould you be more specific about what you need?`
+  if (q.includes('who') || q.includes('member') || q.includes('team')) {
+    if (context.members.length === 0) return 'No team members in this project yet.'
+    return `**Team Members (${context.members.length})**:\n${context.members.map(m => `• ${m.name} (${m.email})`).join('\n')}`
+  }
+
+  return `I understand you're asking about "${last.content.slice(0, 60)}". I can help with:\n• Task **assignment** and workload\n• **Progress reports** and reviews\n• **Project insights** and suggestions\n• Risk flagging\n\nCould you be more specific about what you need?`
 }
 
-export async function chatWithAgent(
-  messages: ChatMessage[],
-  context: ProjectContext,
-): Promise<string> {
-  const systemPrompt = `You are SnapTask AI Agent, a project management assistant. You help teams manage tasks, assign work, review progress, and suggest improvements.
+export async function POST(req: Request) {
+  try {
+    const { messages, context } = await req.json() as { messages: ChatMessage[]; context: ProjectContext }
+
+    const systemPrompt = `You are SnapTask AI Agent, a project management assistant. You help teams manage tasks, assign work, review progress, and suggest improvements.
 
 Current project: "${context.projectName}"
 Status: ${context.status}
@@ -96,19 +99,16 @@ ${context.members.map(m => `- ${m.name} (${m.email})`).join('\n')}
 Tasks:
 ${context.tasks.map(t => `- [${t.status}] "${t.title}" (priority: ${t.priority}, assignee: ${t.assignee || 'unassigned'}, due: ${t.due_date || 'no due date'})`).join('\n')}
 
-You are helpful, concise, and proactive. Give clear answers and actionable suggestions. If the user asks you to assign tasks, suggest logical assignments. If they ask for a review, summarize the project health.`
+You are helpful, concise, and proactive. Give clear answers and actionable suggestions. If the user asks you to assign tasks, suggest logical assignments and tell them to say "assign them" to confirm. If they ask for a review, summarize the project health. Keep responses brief and scannable.`
 
-  const conversation = messages.map(m => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`).join('\n')
-  const prompt = `${systemPrompt}\n\nConversation:\n${conversation}\n\nAgent:`
+    const conversation = messages.map(m => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`).join('\n')
+    const fullPrompt = `${systemPrompt}\n\nConversation:\n${conversation}\n\nAgent:`
 
-  const geminiResult = await tryGemini(prompt)
-  if (geminiResult) return geminiResult
+    const geminiResult = await tryGemini(fullPrompt)
+    const reply = geminiResult || localReply(messages, context)
 
-  return localReply(messages, context)
-}
-
-export async function assignTask(taskId: string, memberId: string) {
-  const supabase = await createServerSupabaseClient()
-  const { error } = await supabase.from('tasks').update({ assignee_id: memberId, updated_at: new Date().toISOString() }).eq('id', taskId)
-  if (error) throw new Error(error.message)
+    return NextResponse.json({ reply })
+  } catch (err) {
+    return NextResponse.json({ reply: 'Sorry, I had a problem. Please try again.' }, { status: 200 })
+  }
 }

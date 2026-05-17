@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { chatWithAgent, assignTask } from '@/lib/ai/agent'
 import type { Project, ProjectTask, Profile } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -55,23 +54,33 @@ export function AiAgentChat({
     members: members.map(m => ({ id: m.id, name: m.name, email: m.email })),
   }
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!input.trim() || loading) return
     const userMsg = input.trim()
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }])
     setLoading(true)
 
+    const updatedMessages = [...messages, { role: 'user' as const, content: userMsg }]
+    setMessages(updatedMessages)
+
     try {
-      const updatedMessages = [...messages, { role: 'user' as const, content: userMsg }]
-      const reply = await chatWithAgent(updatedMessages, context)
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updatedMessages, context }),
+      })
+      const { reply } = await res.json()
 
       if (reply.includes('assign them') && userId) {
         const unassigned = tasks.filter(t => !t.assignee_id)
         for (let i = 0; i < Math.min(unassigned.length, context.members.length); i++) {
           const member = context.members[i % context.members.length]
           try {
-            await assignTask(unassigned[i].id, member.id)
+            await fetch('/api/ai/assign', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ taskId: unassigned[i].id, memberId: member.id }),
+            })
           } catch {}
         }
         onAssign?.()
@@ -89,7 +98,7 @@ export function AiAgentChat({
     } finally {
       setLoading(false)
     }
-  }
+  }, [input, loading, messages, context, tasks, userId, onAssign])
 
   return (
     <div className="flex flex-col h-[500px]">
