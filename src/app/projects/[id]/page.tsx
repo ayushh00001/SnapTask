@@ -90,16 +90,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     load()
 
     const channel = supabase.channel(`project-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, async payload => {
-        if (payload.eventType === 'INSERT') {
-          const sup = getSupabase()
-          const { data } = await sup.from('tasks')
-            .select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)')
-            .eq('id', payload.new.id)
-            .single()
-          if (data) setTasks(prev => [...prev, data as ProjectTask])
-          else refreshTasks()
-        } else if (payload.eventType === 'UPDATE') {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, payload => {
+        if (payload.eventType === 'UPDATE') {
           setTasks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } as ProjectTask : t))
         } else if (payload.eventType === 'DELETE') {
           setTasks(prev => prev.filter(t => t.id !== payload.old.id))
@@ -111,7 +103,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }, [id, router])
 
   const handleDrop = async (taskId: string, newStatus: string) => {
-    const supabase = createClient()
+    const supabase = getSupabase()
     const task = tasks.find(t => t.id === taskId)
     await supabase.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', taskId)
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as ProjectTask['status'] } : t))
@@ -126,7 +118,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleDeleteTask = async (taskId: string) => {
-    const supabase = createClient()
+    const supabase = getSupabase()
     await supabase.from('tasks').delete().eq('id', taskId)
     setTasks(prev => prev.filter(t => t.id !== taskId))
     toast.success('Task deleted')
@@ -134,7 +126,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const handleDeleteProject = async () => {
     if (!confirm('Delete this project and all tasks?')) return
-    const supabase = createClient()
+    const supabase = getSupabase()
     await supabase.from('projects').delete().eq('id', id)
     toast.success('Project deleted')
     router.push('/projects')
