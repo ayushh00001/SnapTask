@@ -1,29 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import type { ProjectPhase, Profile } from '@/lib/types'
-import { toast } from 'sonner'
 
-export interface CreateTaskResult {
-  id: string
-  project_id: string
-  phase_id: string | null
+export interface TaskFormData {
   title: string
   description: string | null
   priority: string
   status: string
+  phase_id: string | null
   assignee_id: string | null
   due_date: string | null
   estimated_hours: number | null
-  created_by: string | null
 }
 
 export function NewTaskForm({
-  projectId,
   phases,
   members,
   selectedPhase,
@@ -33,7 +27,7 @@ export function NewTaskForm({
   phases: ProjectPhase[]
   members: Profile[]
   selectedPhase: string | null
-  onSuccess: (task: CreateTaskResult) => void
+  onSuccess: (data: TaskFormData) => void
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -49,24 +43,16 @@ export function NewTaskForm({
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    const supabase = createClient()
-    const { data: userData } = await supabase.auth.getUser()
-    const { data: inserted, error } = await supabase.from('tasks').insert({
-      project_id: projectId,
-      phase_id: phaseId || null,
+    onSuccess({
       title: title.trim(),
       description: description || null,
       priority,
       status,
+      phase_id: phaseId || null,
       assignee_id: assigneeId || null,
-      created_by: userData.user?.id,
       due_date: dueDate || null,
       estimated_hours: hours ? parseFloat(hours) : null,
-    }).select()
-    if (error) { toast.error(error.message); setLoading(false); return }
-    if (!inserted || inserted.length === 0) { toast.error('Task was not created'); setLoading(false); return }
-    toast.success('Task added')
-    onSuccess(inserted[0])
+    })
   }
 
   return (

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { TaskCard } from '@/components/tasks/task-card'
 import { NewTaskForm } from '@/components/tasks/new-task-form'
+import type { TaskFormData } from '@/components/tasks/new-task-form'
 import { AiInsights } from '@/components/ai/ai-insights'
 import { AiAgentChat } from '@/components/ai/ai-agent-chat'
 import { notifyTaskCompleted } from '@/lib/notifications'
@@ -234,10 +235,29 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           phases={phases}
           members={members}
           selectedPhase={selectedPhase}
-          onSuccess={(task) => {
+          onSuccess={async (data: TaskFormData) => {
+            const supabase = getSupabase()
+            const { data: userData } = await supabase.auth.getUser()
+            const { data: inserted, error } = await supabase.from('tasks').insert({
+              project_id: id,
+              phase_id: data.phase_id,
+              title: data.title,
+              description: data.description,
+              priority: data.priority,
+              status: data.status,
+              assignee_id: data.assignee_id,
+              due_date: data.due_date,
+              estimated_hours: data.estimated_hours,
+              created_by: userData.user?.id,
+            }).select()
+            if (error || !inserted || inserted.length === 0) {
+              toast.error(error?.message || 'Failed to create task')
+              return
+            }
+            toast.success('Task added')
             setShowTaskForm(false)
-            const member = members.find(m => m.id === task.assignee_id)
-            setTasks(prev => [...prev, { ...task, assignee: member || null } as ProjectTask])
+            const member = members.find(m => m.id === inserted[0].assignee_id)
+            setTasks(prev => [...prev, { ...inserted[0], assignee: member || null } as ProjectTask])
           }}
         />
       </Modal>
