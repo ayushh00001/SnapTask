@@ -72,6 +72,9 @@ export function AiAgentChat({
       const { reply } = await res.json()
 
       if (reply.includes('assign them') && userId) {
+        const supabase = createClient()
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
         const unassigned = tasks.filter(t => !t.assignee_id)
         for (let i = 0; i < Math.min(unassigned.length, context.members.length); i++) {
           const member = context.members[i % context.members.length]
@@ -79,7 +82,7 @@ export function AiAgentChat({
             await fetch('/api/ai/assign', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ taskId: unassigned[i].id, memberId: member.id }),
+              body: JSON.stringify({ taskId: unassigned[i].id, memberId: member.id, token }),
             })
           } catch {}
         }

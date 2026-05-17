@@ -32,55 +32,127 @@ async function tryGemini(prompt: string): Promise<string | null> {
   return null
 }
 
+type Intent =
+  | 'greeting' | 'assign' | 'overdue' | 'progress' | 'suggest'
+  | 'members' | 'tasks' | 'status' | 'thanks' | 'help' | 'unknown'
+
+function detectIntent(q: string): Intent {
+  if (/\b(hi|hello|hey|sup|howdy|good\s*(morning|afternoon|evening))\b/.test(q)) return 'greeting'
+  if (/\b(assign|unassigned|who (should|can|will)|give (this|the).*to|allocate|distribute)\b/.test(q)) return 'assign'
+  if (/\b(overdue|behind|delay|lateness|late|missed|falling behind)\b/.test(q)) return 'overdue'
+  if (/\b(progress|review|status|done|completed|finished|how.*(going|far|along)|report|summary|overview)\b/.test(q)) return 'progress'
+  if (/\b(suggest|improve|recommend|advice|tip|optimize|better|help)\b/.test(q)) return 'suggest'
+  if (/\b(who|member|team|people|colleague|coworker)\b/.test(q) && !/\b(assign|task)\b/.test(q)) return 'members'
+  if (/\b(task|what.*do|list.*task|show.*task|all.*task)\b/.test(q)) return 'tasks'
+  if (/\b(how are|status|what can|help|capabilities)\b/.test(q)) return 'help'
+  if (/\b(thanks|thank|appreciate|great|awesome|perfect)\b/.test(q)) return 'thanks'
+  return 'unknown'
+}
+
 function localReply(messages: ChatMessage[], context: ProjectContext): string {
   const last = messages[messages.length - 1]
   const q = last.content.toLowerCase()
+  const intent = detectIntent(q)
 
   const unassigned = context.tasks.filter(t => !t.assignee)
   const overdue = context.tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done')
   const done = context.tasks.filter(t => t.status === 'done')
   const inProgress = context.tasks.filter(t => t.status === 'in_progress')
+  const total = context.tasks.length
 
-  if (q.includes('assign') || q.includes('unassigned') || q.includes('who')) {
-    if (unassigned.length === 0) return 'All tasks have assignees. Great job!'
-    if (context.members.length === 0) return 'No team members yet. Invite people first.'
-    const suggestions = unassigned.slice(0, 5).map(t => {
-      const m = context.members[Math.floor(Math.random() * context.members.length)]
-      return `• "${t.title}" → ${m.name}`
-    }).join('\n')
-    return `Here are my suggested assignments:\n${suggestions}\n\nSay **"assign them"** to confirm and I'll update the database.`
+  switch (intent) {
+    case 'greeting':
+      return `Hello! I'm SnapTask AI Agent, your project assistant for **${context.projectName}**. I can:\n• **Assign tasks** to team members\n• **Review progress** and flag risks\n• **Suggest improvements**\n• List **team members** and their work\n\nWhat would you like help with?`
+
+    case 'assign':
+      if (unassigned.length === 0) return '✅ All tasks already have assignees. Nice work!'
+      if (context.members.length === 0) return 'No team members yet. Invite people to this project first.'
+      let suggestions = `Found **${unassigned.length} unassigned task${unassigned.length > 1 ? 's' : ''}**. Here's how I'd split them:\n`
+      const shuffled = [...context.members].sort(() => Math.random() - 0.5)
+      unassigned.slice(0, 8).forEach((t, i) => {
+        const m = shuffled[i % shuffled.length]
+        suggestions += `• "${t.title}" → **${m.name}**\n`
+      })
+      if (unassigned.length > 8) suggestions += `\n...and ${unassigned.length - 8} more.`
+      suggestions += `\n\nSay **"assign them"** to confirm these assignments.`
+      return suggestions
+
+    case 'overdue':
+      if (overdue.length === 0) return '✅ No overdue tasks. Everything is on schedule!'
+      let overdueMsg = `⚠️ **${overdue.length} overdue task${overdue.length > 1 ? 's' : ''}** that need attention:\n`
+      overdue.slice(0, 5).forEach(t => {
+        const assignee = t.assignee ? ` (${t.assignee})` : ' (unassigned)'
+        overdueMsg += `• "${t.title}"${assignee} — was due ${t.due_date ? new Date(t.due_date).toLocaleDateString() : 'N/A'}\n`
+      })
+      if (overdue.length > 5) overdueMsg += `\n...and ${overdue.length - 5} more.`
+      overdueMsg += `\n\nTip: Try reassigning or extending deadlines for these tasks.`
+      return overdueMsg
+
+    case 'progress':
+      if (total === 0) return 'No tasks yet. Start by creating some with the **Add task** button!'
+      const pct = Math.round(done.length / total * 100)
+      let progMsg = `**${context.projectName} — ${pct}% complete**\n\n`
+      progMsg += `\`\`\`\n${renderBar(pct)}\n\`\`\`\n\n`
+      progMsg += `• Done: **${done.length}**\n• In Progress: **${inProgress.length}**\n• Todo: **${total - done.length - inProgress.length}**\n• Overdue: **${overdue.length}**\n• Unassigned: **${unassigned.length}**\n\n`
+      if (done.length === total) progMsg += '🎉 **All tasks completed!** Great work!'
+      else if (overdue.length > total * 0.3) progMsg += '⚠️ A lot of tasks are overdue — consider a planning session.'
+      else if (unassigned.length > total * 0.3) progMsg += '📋 Many tasks are unassigned — want me to suggest assignments?'
+      else progMsg += '👍 Project is on track. Keep it up!'
+      return progMsg
+
+    case 'suggest':
+      const tips: string[] = []
+      if (unassigned.length > 0) tips.push(`Assign **${unassigned.length} unassigned tasks** to team members`)
+      if (overdue.length > 0) tips.push(`Review **${overdue.length} overdue tasks** and adjust deadlines`)
+      if (inProgress.length > 3) tips.push(`Only **${inProgress.length} tasks in progress** — focus on completing a few before starting more`)
+      if (total === 0) tips.push('Create your **first task** to get the project moving')
+      if (tips.length === 0) tips.push('Everything looks good! Consider planning the next sprint')
+      return `**Suggestions for improvement:**\n\n${tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+
+    case 'members':
+      if (context.members.length === 0) return 'No team members in this project yet. Go to **Settings** to invite people.'
+      let memberMsg = `**Team Members (${context.members.length})**:\n\n`
+      context.members.forEach(m => {
+        const taskCount = context.tasks.filter(t => t.assignee === m.name).length
+        const doneCount = context.tasks.filter(t => t.assignee === m.name && t.status === 'done').length
+        memberMsg += `• ${m.name} — ${doneCount}/${taskCount} tasks done\n`
+      })
+      return memberMsg
+
+    case 'tasks':
+      if (total === 0) return 'No tasks yet. Create one with the **Add task** button!'
+      const byStatus: Record<string, string[]> = { backlog: [], todo: [], in_progress: [], review: [], done: [] }
+      context.tasks.forEach(t => {
+        if (byStatus[t.status]) byStatus[t.status].push(t.title)
+      })
+      let taskMsg = `**All Tasks (${total})**:\n\n`
+      for (const [status, items] of Object.entries(byStatus)) {
+        if (items.length > 0) {
+          taskMsg += `*${status.replace('_', ' ').toUpperCase()}*: ${items.length}\n`
+        }
+      }
+      taskMsg += `\nVisit the project board to see full details.`
+      return taskMsg
+
+    case 'thanks':
+      return "You're welcome! 😊 Let me know if you need anything else — I can help with assignments, progress reports, and more."
+
+    case 'help':
+      return `Here's what I can do:\n\n• **Assign tasks** — "Assign tasks to the team"\n• **Check progress** — "How is the project going?"\n• **Find overdue items** — "Show me overdue tasks"\n• **Suggest improvements** — "Any suggestions?"\n• **List members** — "Who is on the team?"\n• **Show tasks** — "What tasks do we have?"\n\nWhat would you like?`
+
+    default:
+      const phrases = [
+        `I'm not sure I understood "${last.content.slice(0, 40)}". Here's what I can help with:`,
+        `I don't have a specific answer for that. Try asking me about:`,
+        `I can't quite parse that. I work best with commands like:`,
+      ]
+      return `${phrases[Math.floor(Math.random() * phrases.length)]}\n\n• **"Assign tasks"** — auto-assign unassigned tasks\n• **"How is the project going?"** — progress report\n• **"Show overdue tasks"** — list late items\n• **"Any suggestions?"** — get improvement tips\n• **"Who's on the team?"** — list members\n• **"What can you do?"** — see all capabilities`
   }
+}
 
-  if (q.includes('overdue') || q.includes('behind') || q.includes('delay')) {
-    if (overdue.length === 0) return 'No overdue tasks. Everything is on schedule!'
-    return `⚠️ **${overdue.length} overdue task${overdue.length > 1 ? 's' : ''}**\n${overdue.map(t => `• "${t.title}" (was due ${t.due_date ? new Date(t.due_date).toLocaleDateString() : 'N/A'})`).join('\n')}\n\nConsider reassigning or adjusting deadlines.`
-  }
-
-  if (q.includes('review') || q.includes('done') || q.includes('completed') || q.includes('progress')) {
-    const total = context.tasks.length
-    if (total === 0) return 'No tasks yet. Start by creating some!'
-    return `**Project Progress**: ${done.length}/${total} tasks done (${Math.round(done.length / total * 100)}%)\n• Done: ${done.length}\n• In Progress: ${inProgress.length}\n• Overdue: ${overdue.length}\n• Unassigned: ${unassigned.length}\n\nOverall: ${done.length === total ? '✅ All tasks completed!' : overdue.length > 0 ? '⚠️ Some tasks need attention' : '👍 On track'}`
-  }
-
-  if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
-    return `Hello! I'm SnapTask AI Agent. I can:\n• **Assign tasks** to team members\n• **Review project progress**\n• **Flag overdue items**\n• **Suggest improvements**\n\nWhat would you like me to help with?`
-  }
-
-  if (q.includes('improve') || q.includes('suggest') || q.includes('advice') || q.includes('recommend')) {
-    const tips: string[] = []
-    if (unassigned.length > 0) tips.push(`Assign ${unassigned.length} unassigned tasks`)
-    if (overdue.length > 0) tips.push(`Review ${overdue.length} overdue tasks`)
-    if (inProgress.length > 3) tips.push('Too many tasks in progress — focus on finishing a few')
-    if (tips.length === 0) tips.push('Keep up the good work! Consider adding more tasks for the next sprint')
-    return `**Suggestions**:\n${tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
-  }
-
-  if (q.includes('who') || q.includes('member') || q.includes('team')) {
-    if (context.members.length === 0) return 'No team members in this project yet.'
-    return `**Team Members (${context.members.length})**:\n${context.members.map(m => `• ${m.name} (${m.email})`).join('\n')}`
-  }
-
-  return `I understand you're asking about "${last.content.slice(0, 60)}". I can help with:\n• Task **assignment** and workload\n• **Progress reports** and reviews\n• **Project insights** and suggestions\n• Risk flagging\n\nCould you be more specific about what you need?`
+function renderBar(pct: number): string {
+  const filled = Math.round(pct / 10)
+  return '█'.repeat(filled) + '░'.repeat(10 - filled) + ` ${pct}%`
 }
 
 export async function POST(req: Request) {
