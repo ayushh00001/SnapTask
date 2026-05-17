@@ -100,8 +100,8 @@ export default function SettingsPage() {
             {members.map(m => (
               <div key={m.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{(m as unknown as { profile: Profile }).profile?.name || 'Unknown'}</p>
-                  <p className="text-xs text-gray-500">{(m as unknown as { profile: Profile }).profile?.email}</p>
+                  <p className="text-sm font-medium text-gray-900">{m.profile?.name || 'Unknown'}</p>
+                  <p className="text-xs text-gray-500">{m.profile?.email}</p>
                 </div>
                 <Badge color={m.role === 'owner' ? 'green' : m.role === 'admin' ? 'blue' : 'gray'}>{m.role}</Badge>
               </div>

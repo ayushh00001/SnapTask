@@ -25,20 +25,26 @@ export default function DashboardPage() {
       if (!orgs?.length) { setLoading(false); return }
       const orgId = orgs[0].org_id
 
-      const [projectsRes, predictionsRes] = await Promise.all([
-        supabase.from('projects').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
-        supabase.from('ai_predictions').select('*').eq('project_id', orgId).order('created_at', { ascending: false }).limit(5),
-      ])
-      setProjects(projectsRes.data || [])
-      setPredictions(predictionsRes.data || [])
+      const { data: projectsData } = await supabase
+        .from('projects').select('*').eq('org_id', orgId).order('created_at', { ascending: false })
+      setProjects(projectsData || [])
 
-      if (projectsRes.data?.length) {
-        const { data: tasksData } = await supabase
+      let tasksData: ProjectTask[] = []
+      if (projectsData?.length) {
+        const projectIds = projectsData.map(p => p.id)
+        const { data } = await supabase
           .from('tasks').select('*')
-          .in('project_id', projectsRes.data.map(p => p.id))
+          .in('project_id', projectIds)
           .order('due_date', { ascending: true })
-        setTasks(tasksData || [])
+        tasksData = data || []
+
+        const { data: predictionsData } = await supabase
+          .from('ai_predictions').select('*')
+          .in('project_id', projectIds)
+          .order('created_at', { ascending: false }).limit(5)
+        setPredictions(predictionsData || [])
       }
+      setTasks(tasksData)
       setLoading(false)
     }
     load()
@@ -131,17 +137,19 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {projects.slice(0, 5).map(project => (
+              {projects.slice(0, 5).map(project => {
+                const taskCount = tasks.filter(t => t.project_id === project.id).length
+                return (
                 <Link key={project.id} href={`/projects/${project.id}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
                   <div>
                     <p className="font-medium text-gray-900">{project.name}</p>
-                    <p className="text-sm text-gray-500">{project.tasks?.length || 0} tasks</p>
+                    <p className="text-sm text-gray-500">{taskCount} tasks</p>
                   </div>
                   <Badge color={project.status === 'active' ? 'green' : project.status === 'paused' ? 'amber' : project.status === 'completed' ? 'blue' : 'gray'}>
                     {project.status}
                   </Badge>
                 </Link>
-              ))}
+              )})}
             </div>
           )}
         </CardContent>

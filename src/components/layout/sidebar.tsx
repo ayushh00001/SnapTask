@@ -21,10 +21,14 @@ export function Sidebar() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         setProfile({ id: user.id, email: user.email || '', name: user.user_metadata?.name || user.email?.split('@')[0] || '', avatar_url: null, created_at: user.created_at })
-        supabase.from('organizations').select('*').limit(1).single().then(({ data }) => setOrg(data))
+        const { data: orgMembership } = await supabase.from('org_members').select('org_id').eq('user_id', user.id).limit(1).single()
+        if (orgMembership) {
+          const { data } = await supabase.from('organizations').select('*').eq('id', orgMembership.org_id).single()
+          setOrg(data)
+        }
       }
     })
   }, [])

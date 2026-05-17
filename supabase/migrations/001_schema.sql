@@ -15,6 +15,18 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own profile"
   ON profiles FOR SELECT USING (auth.uid() = id);
 
+CREATE POLICY "Org members can view each other's profiles"
+  ON profiles FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM org_members om1
+      WHERE om1.user_id = auth.uid()
+      AND EXISTS (
+        SELECT 1 FROM org_members om2
+        WHERE om2.org_id = om1.org_id AND om2.user_id = profiles.id
+      )
+    )
+  );
+
 CREATE POLICY "Users can update their own profile"
   ON profiles FOR UPDATE USING (auth.uid() = id);
 
@@ -73,12 +85,22 @@ ALTER TABLE org_members ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Members can view org members"
   ON org_members FOR SELECT USING (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = org_id AND user_id = auth.uid())
+    EXISTS (SELECT 1 FROM org_members viewer WHERE viewer.org_id = org_members.org_id AND viewer.user_id = auth.uid())
   );
 
 CREATE POLICY "Admins can invite members"
   ON org_members FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = org_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
+    EXISTS (SELECT 1 FROM org_members admin WHERE admin.org_id = org_members.org_id AND admin.user_id = auth.uid() AND admin.role IN ('owner', 'admin'))
+  );
+
+CREATE POLICY "Owners can update org members"
+  ON org_members FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM org_members owner WHERE owner.org_id = org_members.org_id AND owner.user_id = auth.uid() AND owner.role = 'owner')
+  );
+
+CREATE POLICY "Owners can remove org members"
+  ON org_members FOR DELETE USING (
+    EXISTS (SELECT 1 FROM org_members owner WHERE owner.org_id = org_members.org_id AND owner.user_id = auth.uid() AND owner.role = 'owner')
   );
 
 -- Auto-create org when first user signs up
@@ -122,7 +144,7 @@ CREATE POLICY "Members can view projects"
 
 CREATE POLICY "Members can create projects"
   ON projects FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = org_id AND user_id = auth.uid())
+    EXISTS (SELECT 1 FROM org_members WHERE org_members.org_id = projects.org_id AND org_members.user_id = auth.uid())
   );
 
 CREATE POLICY "Members can update projects"
