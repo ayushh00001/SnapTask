@@ -23,7 +23,13 @@ export function Sidebar() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
-        setProfile({ id: user.id, email: user.email || '', name: user.user_metadata?.name || user.email?.split('@')[0] || '', avatar_url: null, created_at: user.created_at })
+        setProfile({
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || user.email?.split('@')[0] || '',
+          avatar_url: null,
+          created_at: user.created_at,
+        })
         const { data: orgMembership } = await supabase.from('org_members').select('org_id').eq('user_id', user.id).limit(1).single()
         if (orgMembership) {
           const { data } = await supabase.from('organizations').select('*').eq('id', orgMembership.org_id).single()
@@ -34,47 +40,53 @@ export function Sidebar() {
   }, [])
 
   return (
-    <aside className="hidden lg:flex lg:flex-col w-64 border-r border-gray-200 bg-white">
-      <div className="p-6 border-b border-gray-100">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    <aside className="hidden lg:flex lg:flex-col w-64 bg-[#0b0d14] text-white">
+      <div className="p-5 border-b border-white/5">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-sm shadow-brand-500/20">
+            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-gray-900">SnapTask</span>
+          <div>
+            <span className="text-base font-bold">SnapTask</span>
+            <p className="text-[10px] text-white/40 font-medium">Project Management</p>
+          </div>
         </Link>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              pathname.startsWith(item.href)
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-            )}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
-            </svg>
-            {item.label}
-          </Link>
-        ))}
+      <nav className="flex-1 p-3 space-y-0.5">
+        {navItems.map(item => {
+          const active = pathname.startsWith(item.href)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                active
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/50 hover:text-white hover:bg-white/5',
+              )}
+            >
+              <svg className={cn('w-5 h-5 flex-shrink-0', active ? 'text-brand-400' : 'text-white/30')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+              </svg>
+              {item.label}
+            </Link>
+          )
+        })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-3 border-t border-white/5">
         {profile && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-medium text-indigo-700">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
               {profile.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{profile.name}</p>
-              <p className="text-xs text-gray-500 truncate">{org?.name || 'No organization'}</p>
+              <p className="text-sm font-medium text-white truncate">{profile.name}</p>
+              <p className="text-xs text-white/40 truncate">{org?.name || 'No organization'}</p>
             </div>
           </div>
         )}

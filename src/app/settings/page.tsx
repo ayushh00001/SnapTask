@@ -25,10 +25,8 @@ export default function SettingsPage() {
       const { data: userData } = await supabase.auth.getUser()
       if (!userData.user) return
       setProfile({
-        id: userData.user.id,
-        email: userData.user.email || '',
-        name: userData.user.user_metadata?.name || '',
-        avatar_url: null,
+        id: userData.user.id, email: userData.user.email || '',
+        name: userData.user.user_metadata?.name || '', avatar_url: null,
         created_at: userData.user.created_at,
       })
       const { data: orgs } = await supabase.from('org_members').select('org_id, role').eq('user_id', userData.user.id).limit(1)
@@ -57,9 +55,7 @@ export default function SettingsPage() {
     if (!inviteEmail.trim() || !org) return
     const supabase = createClient()
     const { error } = await supabase.from('invites').insert({
-      org_id: org.id,
-      email: inviteEmail,
-      role: 'member',
+      org_id: org.id, email: inviteEmail, role: 'member',
       token: crypto.randomUUID(),
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     })
@@ -77,16 +73,19 @@ export default function SettingsPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
+      <div className="w-8 h-8 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-text-primary">Settings</h1>
+        <p className="text-text-secondary text-sm mt-1">Manage your organization and profile</p>
+      </div>
 
       <Card>
-        <CardHeader><h2 className="font-semibold text-gray-900">Organization</h2></CardHeader>
+        <CardHeader><h2 className="font-semibold text-text-primary">Organization</h2></CardHeader>
         <CardContent className="space-y-4">
           <Input id="orgName" label="Organization name" value={orgName} onChange={e => setOrgName(e.target.value)} />
           <Button onClick={handleUpdateOrg}>Save</Button>
@@ -94,20 +93,30 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader><h2 className="font-semibold text-gray-900">Team members ({members.length})</h2></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-text-primary">Team members</h2>
+            <span className="text-xs text-text-muted bg-surface-muted px-2 py-1 rounded-lg font-medium">{members.length}</span>
+          </div>
+        </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-1">
             {members.map(m => (
-              <div key={m.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{m.profile?.name || 'Unknown'}</p>
-                  <p className="text-xs text-gray-500">{m.profile?.email}</p>
+              <div key={m.id} className="flex items-center justify-between p-3.5 bg-surface-muted rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center font-semibold text-brand-700 text-sm">
+                    {(m.profile?.name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">{m.profile?.name || 'Unknown'}</p>
+                    <p className="text-xs text-text-muted">{m.profile?.email}</p>
+                  </div>
                 </div>
                 <Badge color={m.role === 'owner' ? 'green' : m.role === 'admin' ? 'blue' : 'gray'}>{m.role}</Badge>
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <Input id="invite" placeholder="Email to invite" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
             <Button onClick={handleInvite} variant="secondary">Invite</Button>
           </div>
@@ -115,11 +124,13 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader><h2 className="font-semibold text-gray-900">Profile</h2></CardHeader>
+        <CardHeader><h2 className="font-semibold text-text-primary">Profile</h2></CardHeader>
         <CardContent className="space-y-4">
           <Input id="email" label="Email" value={profile?.email || ''} disabled />
           <Input id="name" label="Name" value={profile?.name || ''} disabled />
-          <Button variant="danger" onClick={handleSignOut}>Sign out</Button>
+          <div className="pt-2">
+            <Button variant="danger" onClick={handleSignOut}>Sign out</Button>
+          </div>
         </CardContent>
       </Card>
     </div>

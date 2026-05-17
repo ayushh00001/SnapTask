@@ -57,30 +57,30 @@ export default function AdminPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
+      <div className="w-8 h-8 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
   if (!stats) return null
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
-        <p className="text-sm text-gray-500 mt-1">System overview and analytics</p>
+        <h1 className="text-2xl font-bold text-text-primary">Admin Panel</h1>
+        <p className="text-text-secondary text-sm mt-1">System overview and analytics</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-gray-900">{stats.total_users}</p><p className="text-xs text-gray-500">Users</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-gray-900">{stats.total_orgs}</p><p className="text-xs text-gray-500">Organizations</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-gray-900">{stats.total_projects}</p><p className="text-xs text-gray-500">Projects</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-gray-900">{stats.total_tasks}</p><p className="text-xs text-gray-500">Tasks</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-gray-900">{stats.total_invites}</p><p className="text-xs text-gray-500">Invites sent</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-gray-900">{stats.waitlist_count}</p><p className="text-xs text-gray-500">Waitlist</p></CardContent></Card>
+        <Card><CardContent className="p-5 text-center"><p className="text-2xl font-bold text-text-primary">{stats.total_users}</p><p className="text-xs text-text-muted mt-0.5">Users</p></CardContent></Card>
+        <Card><CardContent className="p-5 text-center"><p className="text-2xl font-bold text-text-primary">{stats.total_orgs}</p><p className="text-xs text-text-muted mt-0.5">Organizations</p></CardContent></Card>
+        <Card><CardContent className="p-5 text-center"><p className="text-2xl font-bold text-text-primary">{stats.total_projects}</p><p className="text-xs text-text-muted mt-0.5">Projects</p></CardContent></Card>
+        <Card><CardContent className="p-5 text-center"><p className="text-2xl font-bold text-text-primary">{stats.total_tasks}</p><p className="text-xs text-text-muted mt-0.5">Tasks</p></CardContent></Card>
+        <Card><CardContent className="p-5 text-center"><p className="text-2xl font-bold text-text-primary">{stats.total_invites}</p><p className="text-xs text-text-muted mt-0.5">Invites</p></CardContent></Card>
+        <Card><CardContent className="p-5 text-center"><p className="text-2xl font-bold text-text-primary">{stats.waitlist_count}</p><p className="text-xs text-text-muted mt-0.5">Waitlist</p></CardContent></Card>
       </div>
 
       {stats.tasks_by_status.length > 0 && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-900">Tasks by status</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-text-primary">Tasks by status</h2></CardHeader>
           <CardContent>
             <div className="flex gap-2 flex-wrap">
               {stats.tasks_by_status.map(s => (
@@ -98,19 +98,19 @@ export default function AdminPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-900">Recent signups</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-text-primary">Recent signups</h2></CardHeader>
           <CardContent>
             {stats.recent_signups.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-8">No users yet — deploy the app!</p>
+              <p className="text-sm text-text-muted text-center py-8">No users yet — deploy the app!</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {stats.recent_signups.map(u => (
-                  <div key={u.email} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div key={u.email} className="flex items-center justify-between p-3 bg-surface-muted rounded-xl">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{u.name}</p>
-                      <p className="text-xs text-gray-500">{u.email}</p>
+                      <p className="text-sm font-medium text-text-primary">{u.name}</p>
+                      <p className="text-xs text-text-muted">{u.email}</p>
                     </div>
-                    <p className="text-xs text-gray-400">{formatDateShort(u.created_at)}</p>
+                    <p className="text-xs text-text-muted">{formatDateShort(u.created_at)}</p>
                   </div>
                 ))}
               </div>
@@ -119,16 +119,16 @@ export default function AdminPage() {
         </Card>
 
         <Card>
-          <CardHeader><h2 className="font-semibold text-gray-900">Organizations</h2></CardHeader>
+          <CardHeader><h2 className="font-semibold text-text-primary">Organizations</h2></CardHeader>
           <CardContent>
             {stats.recent_orgs.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-8">No organizations yet</p>
+              <p className="text-sm text-text-muted text-center py-8">No organizations yet</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {stats.recent_orgs.map(o => (
-                  <div key={o.name} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-900">{o.name}</p>
-                    <p className="text-xs text-gray-400">{formatDateShort(o.created_at)}</p>
+                  <div key={o.name} className="flex items-center justify-between p-3 bg-surface-muted rounded-xl">
+                    <p className="text-sm font-medium text-text-primary">{o.name}</p>
+                    <p className="text-xs text-text-muted">{formatDateShort(o.created_at)}</p>
                   </div>
                 ))}
               </div>
