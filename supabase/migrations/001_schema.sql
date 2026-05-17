@@ -61,15 +61,52 @@ CREATE TABLE IF NOT EXISTS organizations (
 
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Members can view their org"
-  ON organizations FOR SELECT USING (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = id AND user_id = auth.uid())
+-- Helper functions (SECURITY DEFINER to bypass RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_org_member(org_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.org_members WHERE org_members.org_id = is_org_member.org_id AND org_members.user_id = auth.uid());
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_org_admin(org_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.org_members WHERE org_members.org_id = is_org_admin.org_id AND org_members.user_id = auth.uid() AND org_members.role IN ('owner', 'admin'));
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_org_owner(org_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.org_members WHERE org_members.org_id = is_org_owner.org_id AND org_members.user_id = auth.uid() AND org_members.role = 'owner');
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_access_project(project_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.projects p
+    JOIN public.org_members om ON om.org_id = p.org_id
+    WHERE p.id = can_access_project.project_id AND om.user_id = auth.uid()
   );
+$$;
+
+CREATE POLICY "Members can view their org"
+  ON organizations FOR SELECT USING (public.is_org_member(id));
 
 CREATE POLICY "Owners can update their org"
-  ON organizations FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = id AND user_id = auth.uid() AND role = 'owner')
-  );
+  ON organizations FOR UPDATE USING (public.is_org_owner(id));
 
 -- 3. Org members
 CREATE TABLE IF NOT EXISTS org_members (
@@ -84,24 +121,16 @@ CREATE TABLE IF NOT EXISTS org_members (
 ALTER TABLE org_members ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Members can view org members"
-  ON org_members FOR SELECT USING (
-    EXISTS (SELECT 1 FROM org_members viewer WHERE viewer.org_id = org_members.org_id AND viewer.user_id = auth.uid())
-  );
+  ON org_members FOR SELECT USING (public.is_org_member(org_id));
 
 CREATE POLICY "Admins can invite members"
-  ON org_members FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM org_members admin WHERE admin.org_id = org_members.org_id AND admin.user_id = auth.uid() AND admin.role IN ('owner', 'admin'))
-  );
+  ON org_members FOR INSERT WITH CHECK (public.is_org_admin(org_id));
 
 CREATE POLICY "Owners can update org members"
-  ON org_members FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM org_members owner WHERE owner.org_id = org_members.org_id AND owner.user_id = auth.uid() AND owner.role = 'owner')
-  );
+  ON org_members FOR UPDATE USING (public.is_org_owner(org_id));
 
 CREATE POLICY "Owners can remove org members"
-  ON org_members FOR DELETE USING (
-    EXISTS (SELECT 1 FROM org_members owner WHERE owner.org_id = org_members.org_id AND owner.user_id = auth.uid() AND owner.role = 'owner')
-  );
+  ON org_members FOR DELETE USING (public.is_org_owner(org_id));
 
 -- Auto-create org when first user signs up
 CREATE OR REPLACE FUNCTION handle_first_org()
@@ -138,24 +167,16 @@ CREATE TABLE IF NOT EXISTS projects (
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Members can view projects"
-  ON projects FOR SELECT USING (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = projects.org_id AND user_id = auth.uid())
-  );
+  ON projects FOR SELECT USING (public.is_org_member(org_id));
 
 CREATE POLICY "Members can create projects"
-  ON projects FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM org_members WHERE org_members.org_id = projects.org_id AND org_members.user_id = auth.uid())
-  );
+  ON projects FOR INSERT WITH CHECK (public.is_org_member(org_id));
 
 CREATE POLICY "Members can update projects"
-  ON projects FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = projects.org_id AND user_id = auth.uid())
-  );
+  ON projects FOR UPDATE USING (public.is_org_member(org_id));
 
 CREATE POLICY "Members can delete projects"
-  ON projects FOR DELETE USING (
-    EXISTS (SELECT 1 FROM org_members WHERE org_id = projects.org_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
-  );
+  ON projects FOR DELETE USING (public.is_org_admin(org_id));
 
 -- 5. Project phases
 CREATE TABLE IF NOT EXISTS project_phases (
@@ -169,22 +190,16 @@ CREATE TABLE IF NOT EXISTS project_phases (
 ALTER TABLE project_phases ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Members can view phases"
-  ON project_phases FOR SELECT USING (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON project_phases FOR SELECT USING (public.can_access_project(project_id));
 
 CREATE POLICY "Members can manage phases"
-  ON project_phases FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON project_phases FOR INSERT WITH CHECK (public.can_access_project(project_id));
+
 CREATE POLICY "Members can update phases"
-  ON project_phases FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON project_phases FOR UPDATE USING (public.can_access_project(project_id));
+
 CREATE POLICY "Members can delete phases"
-  ON project_phases FOR DELETE USING (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON project_phases FOR DELETE USING (public.can_access_project(project_id));
 
 -- 6. Tasks
 CREATE TABLE IF NOT EXISTS tasks (
@@ -207,24 +222,16 @@ CREATE TABLE IF NOT EXISTS tasks (
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Members can view tasks"
-  ON tasks FOR SELECT USING (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON tasks FOR SELECT USING (public.can_access_project(project_id));
 
 CREATE POLICY "Members can create tasks"
-  ON tasks FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON tasks FOR INSERT WITH CHECK (public.can_access_project(project_id));
 
 CREATE POLICY "Members can update tasks"
-  ON tasks FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON tasks FOR UPDATE USING (public.can_access_project(project_id));
 
 CREATE POLICY "Members can delete tasks"
-  ON tasks FOR DELETE USING (
-    EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-  );
+  ON tasks FOR DELETE USING (public.can_access_project(project_id));
 
 -- 7. Subtasks
 CREATE TABLE IF NOT EXISTS subtasks (
@@ -237,7 +244,7 @@ CREATE TABLE IF NOT EXISTS subtasks (
 
 ALTER TABLE subtasks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Members can manage subtasks" ON subtasks FOR ALL USING (
-  EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id JOIN tasks t ON t.project_id = p.id WHERE t.id = task_id AND om.user_id = auth.uid())
+  EXISTS (SELECT 1 FROM tasks WHERE tasks.id = subtasks.task_id AND public.can_access_project(tasks.project_id))
 );
 
 -- 8. Task comments
@@ -251,7 +258,7 @@ CREATE TABLE IF NOT EXISTS task_comments (
 
 ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Members can manage comments" ON task_comments FOR ALL USING (
-  EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id JOIN tasks t ON t.project_id = p.id WHERE t.id = task_id AND om.user_id = auth.uid())
+  EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_comments.task_id AND public.can_access_project(tasks.project_id))
 );
 
 -- 9. Invites
@@ -267,9 +274,7 @@ CREATE TABLE IF NOT EXISTS invites (
 );
 
 ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins can manage invites" ON invites FOR ALL USING (
-  EXISTS (SELECT 1 FROM org_members WHERE org_id = invites.org_id AND user_id = auth.uid() AND role IN ('owner', 'admin'))
-);
+CREATE POLICY "Admins can manage invites" ON invites FOR ALL USING (public.is_org_admin(org_id));
 
 -- 10. AI predictions
 CREATE TABLE IF NOT EXISTS ai_predictions (
@@ -283,12 +288,8 @@ CREATE TABLE IF NOT EXISTS ai_predictions (
 );
 
 ALTER TABLE ai_predictions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Members can view predictions" ON ai_predictions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-);
-CREATE POLICY "Members can create predictions" ON ai_predictions FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM org_members om JOIN projects p ON p.org_id = om.org_id WHERE p.id = project_id AND om.user_id = auth.uid())
-);
+CREATE POLICY "Members can view predictions" ON ai_predictions FOR SELECT USING (public.can_access_project(project_id));
+CREATE POLICY "Members can create predictions" ON ai_predictions FOR INSERT WITH CHECK (public.can_access_project(project_id));
 
 -- 11. Subscriptions
 CREATE TABLE IF NOT EXISTS org_subscriptions (
@@ -303,9 +304,7 @@ CREATE TABLE IF NOT EXISTS org_subscriptions (
 );
 
 ALTER TABLE org_subscriptions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Members can view subscription" ON org_subscriptions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM org_members WHERE org_id = org_subscriptions.org_id AND user_id = auth.uid())
-);
+CREATE POLICY "Members can view subscription" ON org_subscriptions FOR SELECT USING (public.is_org_member(org_id));
 
 -- 12. Activity log
 CREATE TABLE IF NOT EXISTS activity_logs (
@@ -320,9 +319,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 );
 
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Members can view activity logs" ON activity_logs FOR SELECT USING (
-  EXISTS (SELECT 1 FROM org_members WHERE org_id = activity_logs.org_id AND user_id = auth.uid())
-);
+CREATE POLICY "Members can view activity logs" ON activity_logs FOR SELECT USING (public.is_org_member(org_id));
 
 -- 13. Waitlist
 CREATE TABLE IF NOT EXISTS waitlist (
