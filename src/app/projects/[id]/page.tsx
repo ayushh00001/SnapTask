@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -39,16 +39,16 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showAiAgent, setShowAiAgent] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
 
-  const loadTasks = async (supabase: ReturnType<typeof createClient>) => {
+  const refreshTasks = useCallback(async () => {
+    const supabase = createClient()
     const [phasesRes, tasksRes] = await Promise.all([
       supabase.from('project_phases').select('*').eq('project_id', id).order('order'),
       supabase.from('tasks').select('*, assignee:assignee_id(id, email, name, avatar_url, created_at)').eq('project_id', id),
     ])
     setPhases(phasesRes.data || [])
     setTasks(tasksRes.data || [])
-  }
+  }, [id])
 
   useEffect(() => {
     const supabase = createClient()
@@ -57,7 +57,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       if (!projectData) { router.push('/projects'); return }
       setProject(projectData)
 
-      await loadTasks(supabase)
+      await refreshTasks()
 
       const { data: userData } = await supabase.auth.getUser()
       if (userData.user) {
@@ -80,16 +80,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setLoading(false)
     }
     load()
+
     const channel = supabase.channel(`project-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, payload => {
-        if (payload.eventType === 'INSERT') setTasks(prev => [...prev, payload.new as ProjectTask])
+        if (payload.eventType === 'INSERT') refreshTasks()
         else if (payload.eventType === 'UPDATE') setTasks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...payload.new } as ProjectTask : t))
         else if (payload.eventType === 'DELETE') setTasks(prev => prev.filter(t => t.id !== payload.old.id))
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [id, router, refreshKey])
+  }, [id, router, refreshTasks])
 
   const handleDrop = async (taskId: string, newStatus: string) => {
     const supabase = createClient()
@@ -223,12 +224,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           phases={phases}
           members={members}
           selectedPhase={selectedPhase}
-          onSuccess={() => { setShowTaskForm(false); setRefreshKey(k => k + 1) }}
+          onSuccess={() => { setShowTaskForm(false); refreshTasks() }}
         />
       </Modal>
 
       <Modal open={showAiAgent} onClose={() => setShowAiAgent(false)} title="AI Agent Chat" subtitle="Ask AI to assign tasks, review progress, and give instructions" className="max-w-xl">
-        <AiAgentChat project={project} tasks={tasks} members={members} onAssign={() => setRefreshKey(k => k + 1)} />
+        <AiAgentChat project={project} tasks={tasks} members={members} onAssign={() => refreshTasks()} />
       </Modal>
 
       <Modal open={showAiModal} onClose={() => setShowAiModal(false)} title="AI Insights" className="max-w-2xl">
