@@ -51,12 +51,22 @@ export default function ProjectsPage() {
     if (!newDesc.trim()) { toast.error('Describe what you want to build'); return }
     setAiLoading(true)
     try {
+      setProgressMsg('AI is analyzing your project...')
       const plan = await extractTasksFromText(newDesc, (msg) => setProgressMsg(msg))
+
+      if (!plan.tasks || plan.tasks.length === 0) {
+        console.error('Plan has no tasks:', plan)
+        toast.error('AI could not generate tasks. Please try a more detailed description.')
+        setAiLoading(false)
+        return
+      }
+
+      setProgressMsg('Creating project...')
       const supabase = createClient()
       const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) return
+      if (!userData.user) { setAiLoading(false); return }
       const { data: orgs } = await supabase.from('org_members').select('org_id').eq('user_id', userData.user.id).limit(1)
-      if (!orgs?.length) return
+      if (!orgs?.length) { setAiLoading(false); return }
       const orgId = orgs[0].org_id
 
       const { data: memberProfiles } = await supabase
@@ -85,32 +95,44 @@ export default function ProjectsPage() {
         status: 'active',
         created_by: userData.user.id,
       }).select().single()
-      if (error) { toast.error(error.message); return }
+      if (error) { toast.error(error.message); setAiLoading(false); return }
 
+      setProgressMsg('Setting up tasks...')
+      let createdCount = 0
       for (const phase of plan.phases) {
-        const { data: phaseData } = await supabase.from('project_phases').insert({
+        const { data: phaseData, error: phaseErr } = await supabase.from('project_phases').insert({
           project_id: project.id, name: phase.name, order: phase.order,
         }).select().single()
+        if (phaseErr) { console.error('Phase insert error:', phaseErr); continue }
         if (phaseData) {
           const phaseTasks = tasksWithAssignees.filter(t => t.phase === phase.name)
           for (const task of phaseTasks) {
-            await supabase.from('tasks').insert({
+            const { error: taskErr } = await supabase.from('tasks').insert({
               project_id: project.id, phase_id: phaseData.id, title: task.title,
               priority: task.priority || 'medium', status: 'todo', created_by: userData.user.id,
               assignee_id: task.assignee || null,
               estimated_hours: task.estimated_hours,
               description: task.instructions || null,
             })
+            if (taskErr) console.error('Task insert error:', taskErr)
+            else createdCount++
           }
         }
       }
+
+      if (createdCount === 0) {
+        toast.error('Could not create tasks. The project was created but has no tasks.')
+        setAiLoading(false)
+        return
+      }
+
       await logActivity(orgId, userData.user.id, 'create_project', 'project', project.id, { name: project.name, ai: true })
-      const taskCount = tasksWithAssignees.length
-      toast.success(`Project created! ${taskCount} tasks generated.`)
+      toast.success(`Project created with ${createdCount} tasks!`)
       setShowCreate(false); setNewDesc('')
       router.push(`/projects/${project.id}?guide=true`)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not create project. Try again.')
+      console.error('Project creation error:', e)
+      toast.error(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
     } finally {
       setAiLoading(false)
     }
