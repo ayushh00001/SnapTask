@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -20,7 +19,6 @@ export default function ProjectsPage() {
   const [taskCounts, setTaskCounts] = useState<Record<string, { total: number; done: number }>>({})
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const router = useRouter()
@@ -49,28 +47,7 @@ export default function ProjectsPage() {
   useEffect(() => { loadProjects() }, [])
 
   const handleCreate = async () => {
-    if (!newName.trim()) return
-    const supabase = createClient()
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return
-    const { data: orgs } = await supabase.from('org_members').select('org_id').eq('user_id', userData.user.id).limit(1)
-    if (!orgs?.length) return
-    const orgId = orgs[0].org_id
-    const { data, error } = await supabase.from('projects').insert({
-      org_id: orgId,
-      name: newName,
-      description: newDesc || null,
-      status: 'planning',
-      created_by: userData.user.id,
-    }).select().single()
-    if (error) { toast.error(error.message); return }
-    await logActivity(orgId, userData.user.id, 'create_project', 'project', data.id, { name: data.name })
-    setShowCreate(false); setNewName(''); setNewDesc('')
-    router.push(`/projects/${data.id}`)
-  }
-
-  const handleAiCreate = async () => {
-    if (!newDesc.trim()) { toast.error('Describe your project'); return }
+    if (!newDesc.trim()) { toast.error('Describe what you want to build'); return }
     setAiLoading(true)
     try {
       const plan = await extractTasksFromText(newDesc)
@@ -98,7 +75,7 @@ export default function ProjectsPage() {
 
       const { data: project, error } = await supabase.from('projects').insert({
         org_id: orgId,
-        name: plan.projectName || newName || 'Untitled',
+        name: plan.projectName || 'New Project',
         description: plan.guide || plan.description || newDesc,
         status: 'active',
         created_by: userData.user.id,
@@ -123,13 +100,12 @@ export default function ProjectsPage() {
         }
       }
       await logActivity(orgId, userData.user.id, 'create_project', 'project', project.id, { name: project.name, ai: true })
-      toast.success(members.length > 0
-        ? `Project created with AI! Tasks assigned to ${members.length} team members.`
-        : 'Project created with AI!')
-      setShowCreate(false); setNewName(''); setNewDesc('')
-      router.push(`/projects/${project.id}`)
+      const taskCount = tasksWithAssignees.length
+      toast.success(`Project created! ${taskCount} tasks generated.`)
+      setShowCreate(false); setNewDesc('')
+      router.push(`/projects/${project.id}?guide=true`)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'AI extraction failed. Try typing manually.')
+      toast.error(e instanceof Error ? e.message : 'Could not create project. Try again.')
     } finally {
       setAiLoading(false)
     }
@@ -155,8 +131,8 @@ export default function ProjectsPage() {
         <Card>
           <EmptyState
             type="projects"
-            title="No projects yet"
-            description="Create your first project — type a description and AI builds the plan"
+            title="Start your first project"
+            description="Describe what you want to build — AI will create a complete plan with tasks and instructions"
             action={<Button onClick={() => setShowCreate(true)}>Create project</Button>}
           />
         </Card>
@@ -164,18 +140,12 @@ export default function ProjectsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map(project => (
             <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group">
-              <Card className="h-full hover:shadow-md transition-all duration-200 border-border-light hover:border-border">
+              <Card className="h-full border-border-light hover:border-border transition-colors">
                 <CardContent className="p-4">
-                  {project.photo_url && (
-                    <img src={project.photo_url} alt="" className="w-full h-24 object-cover mb-3" />
-                  )}
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <h3 className="font-medium text-sm text-notion-text truncate group-hover:text-notion-accent transition-colors">{project.name}</h3>
                     <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
                   </div>
-                  {project.description && (
-                    <p className="text-xs text-notion-text-secondary line-clamp-2">{project.description}</p>
-                  )}
                   {taskCounts[project.id] && taskCounts[project.id].total > 0 && (
                     <div className="mt-2.5">
                       <div className="flex items-center justify-between text-[11px] mb-1">
@@ -201,24 +171,22 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => { setShowCreate(false); setAiLoading(false) }} title="Create project" subtitle="Describe your project and let AI build the plan">
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); setAiLoading(false); setNewDesc('') }} title="Create project" subtitle="Describe what you want to build — AI does the rest">
         <div className="space-y-4">
-          <Input id="pname" label="Project name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., Q3 Marketing Campaign" />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-text-secondary">Describe your project</label>
             <textarea
-              className="block w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[120px] transition-all duration-150"
+              className="block w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[140px] transition-all duration-150"
               value={newDesc}
               onChange={e => setNewDesc(e.target.value)}
-              placeholder="Describe what needs to be built, or paste meeting notes. AI will extract tasks..."
+              placeholder="Example: Build a landing page for my SaaS startup with pricing, features, and a contact form. Use Next.js and Tailwind CSS."
+              autoFocus
             />
+            <p className="text-xs text-notion-text-muted">AI will analyze your description, break it into tasks, and create a complete project plan with step-by-step instructions.</p>
           </div>
-          <div className="flex gap-3 pt-2">
-            <Button onClick={handleCreate} className="flex-1" variant="secondary" disabled={!newName.trim()}>Create manually</Button>
-            <Button onClick={handleAiCreate} loading={aiLoading} className="flex-1" disabled={!newDesc.trim()}>
-              {aiLoading ? 'Thinking...' : 'Generate with AI'}
-            </Button>
-          </div>
+          <Button onClick={handleCreate} loading={aiLoading} className="w-full" disabled={!newDesc.trim()}>
+            {aiLoading ? 'AI is analyzing and creating tasks...' : 'Create project with AI'}
+          </Button>
         </div>
       </Modal>
     </div>

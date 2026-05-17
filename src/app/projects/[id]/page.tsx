@@ -60,6 +60,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('guide') === 'true') {
+      setShowAiAgent(true)
+    }
+  }, [])
+
+  useEffect(() => {
     const supabase = getSupabase()
     async function load() {
       const { data: projectData } = await supabase.from('projects').select('*').eq('id', id).single()
@@ -196,6 +203,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {tasks.length > 0 && (
+        <NextStepBar tasks={tasks} onOpenAgent={() => setShowAiAgent(true)} />
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {statusColumns.map(col => {
           const colTasks = tasks.filter(t => t.status === col.key)
@@ -266,6 +277,49 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <Modal open={showAiModal} onClose={() => setShowAiModal(false)} title="AI Insights" className="max-w-2xl">
         <AiInsights project={project} tasks={tasks} />
       </Modal>
+    </div>
+  )
+}
+
+function NextStepBar({ tasks, onOpenAgent }: { tasks: ProjectTask[]; onOpenAgent: () => void }) {
+  const done = tasks.filter(t => t.status === 'done').length
+  const total = tasks.length
+  const pct = Math.round(done / total * 100)
+  const nextTask = tasks.find(t => t.status === 'todo' || t.status === 'backlog')
+  const inProgress = tasks.filter(t => t.status === 'in_progress').length
+
+  if (done === total) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm">
+        <span className="text-green-600 font-medium">All {total} tasks done!</span>
+        <span className="text-green-500">Ready for the next project.</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 bg-brand-50 border border-brand-200 rounded-xl text-sm">
+      <div className="flex items-center gap-3">
+        <div className="w-24 h-1.5 bg-brand-200 rounded-full overflow-hidden">
+          <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="text-brand-700 font-medium">{pct}%</span>
+        {inProgress > 0 && <span className="text-brand-600">{inProgress} in progress</span>}
+        {nextTask && (
+          <span className="text-brand-600 ml-2">
+            Next: <span className="font-medium text-brand-800">{nextTask.title}</span>
+          </span>
+        )}
+      </div>
+      <button
+        onClick={onOpenAgent}
+        className="text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1"
+      >
+        Ask AI how to do it
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
     </div>
   )
 }
