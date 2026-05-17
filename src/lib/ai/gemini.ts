@@ -7,7 +7,16 @@ export interface ExtractedPlan {
   projectName: string
   description: string
   phases: { name: string; order: number }[]
-  tasks: { title: string; phase: string; priority: string; estimated_hours: number | null }[]
+  tasks: { title: string; phase: string; priority: string; estimated_hours: number | null; assignee?: string | null }[]
+}
+
+export function distributeTasksEvenly(
+  tasks: ExtractedPlan['tasks'],
+  members: { id: string; name: string }[],
+): ExtractedPlan['tasks'] {
+  if (members.length === 0) return tasks
+  const shuffled = [...members].sort(() => Math.random() - 0.5)
+  return tasks.map((t, i) => ({ ...t, assignee: shuffled[i % shuffled.length].id }))
 }
 
 export interface RiskPrediction {

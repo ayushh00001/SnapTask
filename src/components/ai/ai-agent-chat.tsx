@@ -24,7 +24,7 @@ export function AiAgentChat({
 }) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Hi! I'm your AI project manager for **${project.name}**. I can help assign tasks, review progress, and suggest improvements. What do you need?`,
+    content: `Hi! I'm your AI project manager for **${project.name}**.\n\nHere's what I can do:\n• **Assign tasks** to team members — "assign tasks"\n• **Review progress** — "how's it going?"\n• **Suggest improvements** — "any suggestions?"\n• **Generate project plans** — "create a new project"\n• **Flag risks** and overdue items\n\nTry saying **"assign tasks"** or ask me anything about this project!`,
   }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -103,9 +103,21 @@ export function AiAgentChat({
     }
   }, [input, loading, messages, context, tasks, userId, onAssign])
 
+  const totalTasks = context.tasks.length
+  const unassignedCount = context.tasks.filter(t => !t.assignee).length
+  const overdueCount = context.tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length
+  const doneCount = context.tasks.filter(t => t.status === 'done').length
+
   return (
     <div className="flex flex-col h-[500px]">
-      <div className="flex-1 overflow-y-auto px-1 space-y-3">
+      {totalTasks > 0 && (
+        <div className="flex items-center gap-3 px-1 pb-3 mb-3 border-b border-notion-border text-[11px] text-notion-text-secondary">
+          <span>{doneCount}/{totalTasks} done</span>
+          {unassignedCount > 0 && <span className="text-notion-orange">{unassignedCount} unassigned</span>}
+          {overdueCount > 0 && <span className="text-notion-danger">{overdueCount} overdue</span>}
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto px-1 space-y-2">
         {messages.map((msg, i) => (
           <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
             <div
@@ -117,9 +129,9 @@ export function AiAgentChat({
               )}
             >
               {msg.content.split('\n').map((line, j) => (
-                <p key={j} className={line.startsWith('•') || line.match(/^\d+\./) ? 'ml-2' : ''}>
+                <div key={j} className={line.startsWith('•') || line.match(/^\d+\./) ? 'ml-3' : ''}>
                   {formatMessage(line)}
-                </p>
+                </div>
               ))}
             </div>
           </div>
@@ -158,11 +170,20 @@ export function AiAgentChat({
 }
 
 function formatMessage(text: string): React.ReactNode {
-  if (text.startsWith('**') && text.endsWith('**')) {
-    return <strong className="text-text-primary">{text.slice(2, -2)}</strong>
-  }
-  if (text.startsWith('⚠️') || text.startsWith('✅') || text.startsWith('👍')) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  if (parts.length === 1) {
+    if (text.startsWith('```') && text.endsWith('```')) {
+      return <code className="text-xs bg-notion-bg-secondary px-1 py-0.5">{text.slice(3, -3)}</code>
+    }
     return <span>{text}</span>
   }
-  return <span>{text}</span>
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="text-notion-text font-semibold">{part.slice(2, -2)}</strong>
+    }
+    if (part.startsWith('```') && part.endsWith('```')) {
+      return <code key={i} className="text-xs bg-notion-bg-secondary px-1 py-0.5">{part.slice(3, -3)}</code>
+    }
+    return <span key={i}>{part}</span>
+  })
 }

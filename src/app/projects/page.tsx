@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import type { Project } from '@/lib/types'
 import { formatDateShort, statusColor } from '@/lib/utils'
 import { toast } from 'sonner'
-import { extractTasksFromText } from '@/lib/ai/gemini'
+import { extractTasksFromText, distributeTasksEvenly } from '@/lib/ai/gemini'
 import { logActivity } from '@/components/activity/activity-feed'
 
 export default function ProjectsPage() {
@@ -81,11 +81,26 @@ export default function ProjectsPage() {
       if (!orgs?.length) return
       const orgId = orgs[0].org_id
 
+      const { data: memberProfiles } = await supabase
+        .from('org_members')
+        .select('user_id')
+        .eq('org_id', orgId)
+      let members: { id: string; name: string }[] = []
+      if (memberProfiles?.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', memberProfiles.map(m => m.user_id))
+        members = profiles || []
+      }
+
+      const tasksWithAssignees = distributeTasksEvenly(plan.tasks, members)
+
       const { data: project, error } = await supabase.from('projects').insert({
         org_id: orgId,
         name: plan.projectName || newName || 'Untitled',
         description: plan.description || newDesc,
-        status: 'planning',
+        status: 'active',
         created_by: userData.user.id,
       }).select().single()
       if (error) { toast.error(error.message); return }
@@ -95,18 +110,21 @@ export default function ProjectsPage() {
           project_id: project.id, name: phase.name, order: phase.order,
         }).select().single()
         if (phaseData) {
-          const phaseTasks = plan.tasks.filter(t => t.phase === phase.name)
+          const phaseTasks = tasksWithAssignees.filter(t => t.phase === phase.name)
           for (const task of phaseTasks) {
             await supabase.from('tasks').insert({
               project_id: project.id, phase_id: phaseData.id, title: task.title,
               priority: task.priority || 'medium', status: 'todo', created_by: userData.user.id,
+              assignee_id: task.assignee || null,
               estimated_hours: task.estimated_hours,
             })
           }
         }
       }
       await logActivity(orgId, userData.user.id, 'create_project', 'project', project.id, { name: project.name, ai: true })
-      toast.success('Project created with AI!')
+      toast.success(members.length > 0
+        ? `Project created with AI! Tasks assigned to ${members.length} team members.`
+        : 'Project created with AI!')
       setShowCreate(false); setNewName(''); setNewDesc('')
       router.push(`/projects/${project.id}`)
     } catch {

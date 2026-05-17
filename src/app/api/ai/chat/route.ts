@@ -34,7 +34,7 @@ async function tryGemini(prompt: string): Promise<string | null> {
 
 type Intent =
   | 'greeting' | 'assign' | 'overdue' | 'progress' | 'suggest'
-  | 'members' | 'tasks' | 'status' | 'thanks' | 'help' | 'unknown'
+  | 'members' | 'tasks' | 'status' | 'thanks' | 'help' | 'generate' | 'unknown'
 
 function detectIntent(q: string): Intent {
   if (/\b(hi|hello|hey|sup|howdy|good\s*(morning|afternoon|evening))\b/.test(q)) return 'greeting'
@@ -46,6 +46,7 @@ function detectIntent(q: string): Intent {
   if (/\b(task|what.*do|list.*task|show.*task|all.*task)\b/.test(q)) return 'tasks'
   if (/\b(how are|status|what can|help|capabilities)\b/.test(q)) return 'help'
   if (/\b(thanks|thank|appreciate|great|awesome|perfect)\b/.test(q)) return 'thanks'
+  if (/\b(generate|create|plan|new project|make.*project|build.*project|start.*project)\b/.test(q)) return 'generate'
   return 'unknown'
 }
 
@@ -137,8 +138,14 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
     case 'thanks':
       return "You're welcome! 😊 Let me know if you need anything else — I can help with assignments, progress reports, and more."
 
+    case 'generate':
+      if (context.tasks.length > 0) {
+        return `This project already has ${context.tasks.length} tasks. If you want to create a **new project**, go to the Projects page and click **"New project"** — describe what you need and AI will generate a full plan with tasks assigned to team members!`
+      }
+      return `I can help plan this project! Here's what I recommend:\n\n1. Go to the **Projects page**\n2. Click **"New project"**\n3. Describe your project in detail\n4. Click **"Generate with AI"**\n\nThe AI will:\n• Create project phases\n• Generate tasks for each phase\n• **Auto-assign tasks to team members** equally\n• Set priorities and estimates\n\nWant me to suggest a project structure based on "${context.projectName}"?\n\n**Suggested phases:**\n• Planning & Research\n• Design & Architecture\n• Development\n• Testing & QA\n• Deployment & Launch\n\nSay **"yes"** and I'll create this structure for you!`
+
     case 'help':
-      return `Here's what I can do:\n\n• **Assign tasks** — "Assign tasks to the team"\n• **Check progress** — "How is the project going?"\n• **Find overdue items** — "Show me overdue tasks"\n• **Suggest improvements** — "Any suggestions?"\n• **List members** — "Who is on the team?"\n• **Show tasks** — "What tasks do we have?"\n\nWhat would you like?`
+      return `Here's what I can do:\n\n• **Assign tasks** — "Assign tasks to the team"\n• **Check progress** — "How is the project going?"\n• **Find overdue items** — "Show me overdue tasks"\n• **Suggest improvements** — "Any suggestions?"\n• **List members** — "Who is on the team?"\n• **Show tasks** — "What tasks do we have?"\n• **Generate projects** — "Create a new project"\n\nWhat would you like?`
 
     default:
       const phrases = [

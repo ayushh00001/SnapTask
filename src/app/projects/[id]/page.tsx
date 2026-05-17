@@ -203,7 +203,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           phases={phases}
           members={members}
           selectedPhase={selectedPhase}
-          onSuccess={() => setShowTaskForm(false)}
+          onSuccess={() => { setShowTaskForm(false); setRefreshKey(k => k + 1) }}
         />
       </Modal>
 
