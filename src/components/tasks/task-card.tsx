@@ -26,10 +26,10 @@ export function TaskCard({
         draggable
         onDragStart={e => e.dataTransfer.setData('taskId', task.id)}
         onClick={() => setShowDetail(true)}
-        className="bg-white rounded-xl p-4 shadow-sm border border-border-light cursor-grab active:cursor-grabbing hover:shadow-md hover:border-border transition-all duration-150 group"
+        className="bg-notion-bg px-3 py-2.5 border border-notion-border cursor-grab active:cursor-grabbing hover:bg-notion-bg-hover transition-colors duration-100 group"
       >
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium text-text-primary">{task.title}</p>
+          <p className="text-sm text-notion-text">{task.title}</p>
           <button
             onClick={e => { e.stopPropagation(); onDelete(task.id) }}
             className="text-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
@@ -39,26 +39,26 @@ export function TaskCard({
             </svg>
           </button>
         </div>
-        {task.description && <p className="mt-1 text-xs text-text-muted line-clamp-2">{task.description}</p>}
-        <div className="mt-3 flex items-center justify-between">
+        {task.description && <p className="mt-0.5 text-xs text-notion-text-secondary line-clamp-2">{task.description}</p>}
+        <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Badge color={task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : task.priority === 'medium' ? 'blue' : 'gray'}>
+            <span className={`text-[11px] font-medium ${task.priority === 'urgent' ? 'text-notion-red' : task.priority === 'high' ? 'text-notion-orange' : task.priority === 'medium' ? 'text-notion-blue' : 'text-notion-text-muted'}`}>
               {task.priority}
-            </Badge>
+            </span>
             {task.due_date && (
-              <span className={`text-xs ${isOverdue(task.due_date) && task.status !== 'done' ? 'text-red-600 font-medium' : 'text-text-muted'}`}>
+              <span className={`text-[11px] ${isOverdue(task.due_date) && task.status !== 'done' ? 'text-notion-danger font-medium' : 'text-notion-text-muted'}`}>
                 {formatDateShort(task.due_date)}
               </span>
             )}
           </div>
           {assignee && (
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center text-[10px] font-bold text-brand-700" title={assignee.name}>
+            <div className="w-5 h-5 rounded bg-notion-bg-hover flex items-center justify-center text-[9px] font-medium text-notion-text-secondary" title={assignee.name}>
               {getInitials(assignee.name)}
             </div>
           )}
         </div>
         {task.estimated_hours && (
-          <p className="mt-2 text-[11px] text-text-muted border-t border-border-light pt-2">{task.estimated_hours}h estimated</p>
+          <p className="mt-1.5 text-[11px] text-notion-text-muted border-t border-notion-border pt-1.5">{task.estimated_hours}h estimated</p>
         )}
       </div>
       {showDetail && (

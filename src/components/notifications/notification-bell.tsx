@@ -90,10 +90,10 @@ export function NotificationBell() {
 
   return (
     <div ref={dropdownRef} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all"
-      >
+        <button
+          onClick={() => setOpen(!open)}
+          className="relative p-1.5 rounded text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover transition-colors"
+        >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
@@ -105,40 +105,40 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-[#151821] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-            <h3 className="text-sm font-semibold text-white">Notifications</h3>
+          <div className="absolute right-0 mt-2 w-80 bg-notion-bg rounded shadow-xl border border-notion-border overflow-hidden z-50">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-notion-border">
+            <h3 className="text-xs font-semibold text-notion-text">Notifications</h3>
             {unread > 0 && (
-              <button onClick={handleMarkAllRead} className="text-xs text-brand-400 hover:text-brand-300 transition-colors">
+              <button onClick={handleMarkAllRead} className="text-xs text-notion-accent hover:text-notion-accent-hover transition-colors">
                 Mark all read
               </button>
             )}
           </div>
           <div className="max-h-[400px] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-white/30 text-sm">No notifications yet</div>
+              <div className="px-4 py-8 text-center text-notion-text-muted text-sm">No notifications yet</div>
             ) : (
               notifications.map(n => (
                 <button
                   key={n.id}
                   onClick={() => handleMarkRead(n.id)}
                   className={cn(
-                    'w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0',
-                    !n.read && 'bg-brand-500/5',
+                    'w-full text-left px-4 py-2.5 hover:bg-notion-bg-hover transition-colors border-b border-notion-border last:border-0',
+                    !n.read && 'bg-[#edf6ff]',
                   )}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5', typeColor(n.type))}>
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn('w-6 h-6 rounded flex items-center justify-center flex-shrink-0 mt-0.5', typeColor(n.type))}>
+                      <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={typeIcon(n.type)} />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{n.title}</p>
-                      <p className="text-xs text-white/50 mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[10px] text-white/30 mt-1">{formatTimeAgo(n.created_at)}</p>
+                      <p className="text-sm font-medium text-notion-text">{n.title}</p>
+                      <p className="text-xs text-notion-text-secondary mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-[11px] text-notion-text-muted mt-1">{formatTimeAgo(n.created_at)}</p>
                     </div>
-                    {!n.read && <div className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0 mt-2" />}
+                    {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-notion-accent flex-shrink-0 mt-2" />}
                   </div>
                 </button>
               ))

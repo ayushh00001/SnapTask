@@ -123,37 +123,36 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
+      <div className="animate-spin w-4 h-4 border-[2px] border-notion-text border-t-transparent rounded-full" />
     </div>
   )
   if (!project) return null
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{project.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-lg sm:text-xl font-bold text-notion-text truncate">{project.name}</h1>
             <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
           </div>
-          {project.description && <p className="mt-1 text-gray-500 text-sm line-clamp-2">{project.description}</p>}
+          {project.description && <p className="mt-0.5 text-sm text-notion-text-secondary line-clamp-2">{project.description}</p>}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-          <Button variant="secondary" onClick={() => setShowAiAgent(true)} className="!bg-brand-500/10 !text-brand-400 !border-brand-500/20 hover:!bg-brand-500/20 text-xs sm:text-sm">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+          <Button variant="accent" onClick={() => setShowAiAgent(true)} size="sm">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            <span className="hidden sm:inline">AI Agent</span>
-            <span className="sm:hidden">AI</span>
+            Agent
           </Button>
-          <Button variant="secondary" onClick={() => setShowAiModal(true)} className="text-xs sm:text-sm">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Button variant="secondary" onClick={() => setShowAiModal(true)} size="sm">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span className="hidden sm:inline">Insights</span>
+            Insights
           </Button>
-          <Button variant="secondary" onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }} className="text-xs sm:text-sm">Add</Button>
-          <Button variant="danger" onClick={handleDeleteProject} className="text-xs sm:text-sm">Delete</Button>
+          <Button variant="secondary" onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }} size="sm">+ Add</Button>
+          <Button variant="danger" onClick={handleDeleteProject} size="sm">Delete</Button>
         </div>
       </div>
 
@@ -165,32 +164,32 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {statusColumns.map(col => {
           const colTasks = tasks.filter(t => t.status === col.key)
           return (
             <div
               key={col.key}
-              className="bg-gray-50 rounded-xl p-4 min-h-[300px]"
+              className="bg-notion-bg-secondary p-3 min-h-[200px]"
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
                 const taskId = e.dataTransfer.getData('taskId')
                 if (taskId) handleDrop(taskId, col.key)
               }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-gray-700 text-sm">{col.label}</h3>
-                <span className="text-xs text-gray-400 bg-white px-2 py-0.5 rounded-full">{colTasks.length}</span>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-xs text-notion-text-secondary uppercase tracking-wide">{col.label}</h3>
+                <span className="text-xs text-notion-text-muted">{colTasks.length}</span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {colTasks.map(task => (
                   <TaskCard key={task.id} task={task} members={members} onDelete={handleDeleteTask} onUpdate={() => {}} />
                 ))}
                 <button
                   onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }}
-                  className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                  className="w-full py-1.5 text-xs text-notion-text-muted hover:text-notion-text-secondary hover:bg-notion-bg-hover transition-colors"
                 >
-                  + Add task
+                  + Add
                 </button>
               </div>
             </div>

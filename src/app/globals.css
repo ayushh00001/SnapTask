@@ -1,27 +1,44 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
+  --color-notion-bg: #ffffff;
+  --color-notion-bg-secondary: #f7f6f3;
+  --color-notion-bg-hover: #efefef;
+  --color-notion-bg-selected: #e8e7e4;
+  --color-notion-sidebar: #f7f7f5;
+  --color-notion-card: #ffffff;
+  --color-notion-text: #37352f;
+  --color-notion-text-secondary: #9b9a97;
+  --color-notion-text-muted: #c5c4c0;
+  --color-notion-border: #e9e9e7;
+  --color-notion-border-hover: #d1d0cc;
+  --color-notion-accent: #2383e2;
+  --color-notion-accent-hover: #0b6bcb;
+  --color-notion-danger: #e03e3d;
+  --color-notion-danger-hover: #c73635;
+  --color-notion-green: #0f7b6c;
+  --color-notion-orange: #d9730d;
+  --color-notion-red: #e03e3d;
+  --color-notion-blue: #2383e2;
+  --color-notion-purple: #6940a5;
+  --color-notion-gray: #9b9a97;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
 
   --color-surface: #ffffff;
-  --color-surface-muted: #f8f9fc;
-  --color-surface-hover: #f1f3f9;
-  --color-border: #e2e6ef;
-  --color-border-light: #f0f2f7;
-  --color-text-primary: #0b0d14;
-  --color-text-secondary: #525866;
-  --color-text-muted: #868c98;
-
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-surface-muted: #f7f6f3;
+  --color-surface-hover: #efefef;
+  --color-border: #e9e9e7;
+  --color-border-light: #e9e9e7;
+  --color-text-primary: #37352f;
+  --color-text-secondary: #9b9a97;
+  --color-text-muted: #c5c4c0;
+  --color-brand-50: #edf6ff;
+  --color-brand-100: #d9e7f7;
+  --color-brand-500: #2383e2;
+  --color-brand-600: #2383e2;
+  --color-brand-700: #0b6bcb;
 }
 
 html {
@@ -32,8 +49,14 @@ html {
 
 body {
   font-family: var(--font-sans);
-  color: var(--color-text-primary);
-  background: var(--color-surface-muted);
+  color: var(--color-notion-text);
+  background: var(--color-notion-bg-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+::selection {
+  background: #d9e7f7;
 }
 
 @utility line-clamp-2 {
@@ -43,22 +66,13 @@ body {
   -webkit-line-clamp: 2;
 }
 
-@utility glass {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 230, 239, 0.5);
+@utility notion-focus {
+  outline: none;
+}
+.notion-focus:focus-visible {
+  box-shadow: 0 0 0 2px #2383e2;
 }
 
-@utility card-hover {
-  transition: all 0.2s ease;
-}
-.card-hover:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
-}
-
-/* Smooth scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -72,13 +86,4 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
-}
-
-/* Page transition animation */
-.page-enter {
-  animation: pageIn 0.35s ease;
-}
-@keyframes pageIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
 }

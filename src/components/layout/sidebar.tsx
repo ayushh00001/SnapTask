@@ -41,26 +41,23 @@ export function Sidebar() {
   }, [])
 
   return (
-    <aside className="hidden lg:flex lg:flex-col w-64 bg-[#0b0d14] text-white">
-      <div className="p-5 border-b border-white/5">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-sm shadow-brand-500/20">
-            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <aside className="hidden lg:flex lg:flex-col w-60 bg-notion-sidebar border-r border-notion-border">
+      <div className="px-4 py-3 border-b border-notion-border">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded bg-notion-text flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <div>
-            <span className="text-base font-bold">SnapTask</span>
-            <p className="text-[10px] text-white/40 font-medium">Project Management</p>
-          </div>
+          <span className="text-sm font-semibold text-notion-text">SnapTask</span>
         </Link>
       </div>
 
-      <div className="px-3 pt-2 pb-1">
+      <div className="px-2 py-2 border-b border-notion-border">
         <NotificationBell />
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5">
+      <nav className="flex-1 px-2 py-2 space-y-0.5">
         {navItems.map(item => {
           const active = pathname.startsWith(item.href)
           return (
@@ -68,13 +65,13 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                'flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-colors duration-100',
                 active
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/50 hover:text-white hover:bg-white/5',
+                  ? 'bg-notion-bg-selected text-notion-text'
+                  : 'text-notion-text-secondary hover:bg-notion-bg-hover hover:text-notion-text',
               )}
             >
-              <svg className={cn('w-5 h-5 flex-shrink-0', active ? 'text-brand-400' : 'text-white/30')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className={cn('w-4 h-4 flex-shrink-0', active ? 'text-notion-text' : 'text-notion-text-muted')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
               </svg>
               {item.label}
@@ -83,15 +80,15 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-white/5">
+      <div className="px-2 py-2 border-t border-notion-border">
         {profile && (
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+          <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-notion-bg-hover transition-colors cursor-default">
+            <div className="w-6 h-6 rounded bg-notion-bg-hover flex items-center justify-center text-xs font-medium text-notion-text flex-shrink-0">
               {profile.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{profile.name}</p>
-              <p className="text-xs text-white/40 truncate">{org?.name || 'No organization'}</p>
+              <p className="text-sm text-notion-text truncate leading-tight">{profile.name}</p>
+              <p className="text-xs text-notion-text-muted truncate leading-tight">{org?.name || ''}</p>
             </div>
           </div>
         )}

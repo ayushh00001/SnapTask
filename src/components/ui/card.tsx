@@ -4,8 +4,8 @@ import type { ReactNode } from 'react'
 export function Card({ children, className, hover }: { children: ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={cn(
-      'rounded-xl border border-border bg-white shadow-sm transition-all duration-200',
-      hover && 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
+      'border border-notion-border bg-notion-card transition-colors duration-100',
+      hover && 'hover:bg-notion-bg-hover cursor-pointer',
       className,
     )}>
       {children}
@@ -15,7 +15,7 @@ export function Card({ children, className, hover }: { children: ReactNode; clas
 
 export function CardHeader({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('px-6 py-5 border-b border-border-light', className)}>
+    <div className={cn('px-5 py-3.5 border-b border-notion-border', className)}>
       {children}
     </div>
   )
@@ -23,7 +23,7 @@ export function CardHeader({ children, className }: { children: ReactNode; class
 
 export function CardContent({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('px-6 py-5', className)}>
+    <div className={cn('px-5 py-3.5', className)}>
       {children}
     </div>
   )

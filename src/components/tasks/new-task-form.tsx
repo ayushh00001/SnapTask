@@ -58,9 +58,9 @@ export function NewTaskForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input id="taskTitle" label="Title" value={title} onChange={e => setTitle(e.target.value)} required placeholder="What needs to be done?" />
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Description</label>
+        <label className="block text-xs font-medium text-notion-text-secondary">Description</label>
         <textarea
-          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-h-[80px]"
+          className="block w-full border border-notion-border bg-notion-bg px-3 py-1.5 text-sm text-notion-text placeholder:text-notion-text-muted focus:border-notion-accent focus:outline-none min-h-[80px]"
           value={description}
           onChange={e => setDescription(e.target.value)}
         />

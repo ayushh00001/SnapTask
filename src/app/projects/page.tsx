@@ -126,8 +126,8 @@ export default function ProjectsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Projects</h1>
-          <p className="text-text-secondary text-sm mt-1">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl font-bold text-notion-text">Projects</h1>
+          <p className="text-sm text-notion-text-secondary mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>New project</Button>
       </div>
@@ -146,32 +146,32 @@ export default function ProjectsPage() {
           {projects.map(project => (
             <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group">
               <Card className="h-full hover:shadow-md transition-all duration-200 border-border-light hover:border-border">
-                <CardContent className="p-6">
+                <CardContent className="p-4">
                   {project.photo_url && (
-                    <img src={project.photo_url} alt="" className="w-full h-32 object-cover rounded-xl mb-4" />
+                    <img src={project.photo_url} alt="" className="w-full h-24 object-cover mb-3" />
                   )}
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-semibold text-text-primary truncate group-hover:text-brand-600 transition-colors">{project.name}</h3>
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <h3 className="font-medium text-sm text-notion-text truncate group-hover:text-notion-accent transition-colors">{project.name}</h3>
                     <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
                   </div>
                   {project.description && (
-                    <p className="text-sm text-text-secondary line-clamp-2">{project.description}</p>
+                    <p className="text-xs text-notion-text-secondary line-clamp-2">{project.description}</p>
                   )}
                   {taskCounts[project.id] && taskCounts[project.id].total > 0 && (
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-xs mb-1.5">
-                        <span className="text-text-muted">{taskCounts[project.id].done}/{taskCounts[project.id].total} done</span>
-                        <span className="font-medium text-text-secondary">{Math.round(taskCounts[project.id].done / taskCounts[project.id].total * 100)}%</span>
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="text-notion-text-muted">{taskCounts[project.id].done}/{taskCounts[project.id].total} done</span>
+                        <span className="font-medium text-notion-text-secondary">{Math.round(taskCounts[project.id].done / taskCounts[project.id].total * 100)}%</span>
                       </div>
-                      <div className="w-full h-1.5 bg-surface-muted rounded-full overflow-hidden">
+                      <div className="w-full h-1 bg-notion-bg-secondary">
                         <div
-                          className="h-full bg-gradient-to-r from-brand-500 to-brand-400 rounded-full transition-all duration-500"
+                          className="h-full bg-notion-accent transition-all duration-500"
                           style={{ width: `${taskCounts[project.id].done / taskCounts[project.id].total * 100}%` }}
                         />
                       </div>
                     </div>
                   )}
-                  <div className="mt-4 pt-4 border-t border-border-light flex items-center justify-between text-xs text-text-muted">
+                  <div className="mt-3 pt-3 border-t border-notion-border flex items-center justify-between text-[11px] text-notion-text-muted">
                     <span>Created {formatDateShort(project.created_at)}</span>
                     {taskCounts[project.id]?.total ? <span>{taskCounts[project.id].total} task{taskCounts[project.id].total !== 1 ? 's' : ''}</span> : <span>0 tasks</span>}
                   </div>
