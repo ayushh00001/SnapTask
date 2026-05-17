@@ -8,13 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { Project } from '@/lib/types'
 import { formatDateShort, statusColor } from '@/lib/utils'
 import { toast } from 'sonner'
 import { extractTasksFromText } from '@/lib/ai/gemini'
+import { logActivity } from '@/components/activity/activity-feed'
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [taskCounts, setTaskCounts] = useState<Record<string, { total: number; done: number }>>({})
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
@@ -30,6 +33,16 @@ export default function ProjectsPage() {
     if (!orgs?.length) { setLoading(false); return }
     const { data } = await supabase.from('projects').select('*').eq('org_id', orgs[0].org_id).order('created_at', { ascending: false })
     setProjects(data || [])
+    if (data?.length) {
+      const { data: tasks } = await supabase.from('tasks').select('project_id, status').in('project_id', data.map(p => p.id))
+      const counts: Record<string, { total: number; done: number }> = {}
+      ;(tasks || []).forEach(t => {
+        if (!counts[t.project_id]) counts[t.project_id] = { total: 0, done: 0 }
+        counts[t.project_id].total++
+        if (t.status === 'done') counts[t.project_id].done++
+      })
+      setTaskCounts(counts)
+    }
     setLoading(false)
   }
 
@@ -51,6 +64,7 @@ export default function ProjectsPage() {
       created_by: userData.user.id,
     }).select().single()
     if (error) { toast.error(error.message); return }
+    await logActivity(orgId, userData.user.id, 'create_project', 'project', data.id, { name: data.name })
     setShowCreate(false); setNewName(''); setNewDesc('')
     router.push(`/projects/${data.id}`)
   }
@@ -91,6 +105,7 @@ export default function ProjectsPage() {
           }
         }
       }
+      await logActivity(orgId, userData.user.id, 'create_project', 'project', project.id, { name: project.name, ai: true })
       toast.success('Project created with AI!')
       setShowCreate(false); setNewName(''); setNewDesc('')
       router.push(`/projects/${project.id}`)
@@ -119,16 +134,12 @@ export default function ProjectsPage() {
 
       {projects.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-16">
-            <div className="w-16 h-16 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-text-primary mb-1">No projects yet</h3>
-            <p className="text-text-secondary text-sm mb-6">Create your first project — type a description and AI builds the plan</p>
-            <Button onClick={() => setShowCreate(true)}>Create project</Button>
-          </CardContent>
+          <EmptyState
+            type="projects"
+            title="No projects yet"
+            description="Create your first project — type a description and AI builds the plan"
+            action={<Button onClick={() => setShowCreate(true)}>Create project</Button>}
+          />
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -146,8 +157,23 @@ export default function ProjectsPage() {
                   {project.description && (
                     <p className="text-sm text-text-secondary line-clamp-2">{project.description}</p>
                   )}
+                  {taskCounts[project.id] && taskCounts[project.id].total > 0 && (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-text-muted">{taskCounts[project.id].done}/{taskCounts[project.id].total} done</span>
+                        <span className="font-medium text-text-secondary">{Math.round(taskCounts[project.id].done / taskCounts[project.id].total * 100)}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-surface-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-brand-500 to-brand-400 rounded-full transition-all duration-500"
+                          style={{ width: `${taskCounts[project.id].done / taskCounts[project.id].total * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-4 pt-4 border-t border-border-light flex items-center justify-between text-xs text-text-muted">
                     <span>Created {formatDateShort(project.created_at)}</span>
+                    {taskCounts[project.id]?.total ? <span>{taskCounts[project.id].total} task{taskCounts[project.id].total !== 1 ? 's' : ''}</span> : <span>0 tasks</span>}
                   </div>
                 </CardContent>
               </Card>

@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ActivityFeed } from '@/components/activity/activity-feed'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { Project, ProjectTask, AiPrediction } from '@/lib/types'
 import { formatDateShort, isOverdue, statusColor } from '@/lib/utils'
 
@@ -13,6 +15,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<ProjectTask[]>([])
   const [predictions, setPredictions] = useState<AiPrediction[]>([])
+  const [orgId, setOrgId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -24,6 +27,7 @@ export default function DashboardPage() {
       const { data: orgs } = await supabase.from('org_members').select('org_id').eq('user_id', userData.user.id).limit(1)
       if (!orgs?.length) { setLoading(false); return }
       const orgId = orgs[0].org_id
+      setOrgId(orgId)
 
       const { data: projectsData } = await supabase
         .from('projects').select('*').eq('org_id', orgId).order('created_at', { ascending: false })
@@ -136,18 +140,12 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {projects.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-              </div>
-              <p className="text-text-secondary font-medium">No projects yet</p>
-              <p className="text-sm text-text-muted mt-1">Create your first project to get started</p>
-              <Link href="/projects">
-                <Button className="mt-5">Create your first project</Button>
-              </Link>
-            </div>
+            <EmptyState
+              type="projects"
+              title="No projects yet"
+              description="Create your first project to get started"
+              action={<Link href="/projects"><Button>Create your first project</Button></Link>}
+            />
           ) : (
             <div className="space-y-1">
               {projects.slice(0, 5).map(project => {
@@ -175,6 +173,8 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {orgId && <ActivityFeed orgId={orgId} />}
     </div>
   )
 }
