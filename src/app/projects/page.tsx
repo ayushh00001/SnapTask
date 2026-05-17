@@ -99,7 +99,7 @@ export default function ProjectsPage() {
       const { data: project, error } = await supabase.from('projects').insert({
         org_id: orgId,
         name: plan.projectName || newName || 'Untitled',
-        description: plan.description || newDesc,
+        description: plan.guide || plan.description || newDesc,
         status: 'active',
         created_by: userData.user.id,
       }).select().single()
@@ -117,6 +117,7 @@ export default function ProjectsPage() {
               priority: task.priority || 'medium', status: 'todo', created_by: userData.user.id,
               assignee_id: task.assignee || null,
               estimated_hours: task.estimated_hours,
+              description: task.instructions || null,
             })
           }
         }

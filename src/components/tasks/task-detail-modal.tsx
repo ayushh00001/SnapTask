@@ -101,7 +101,29 @@ export function TaskDetailModal({
         </div>
 
         {task.description && (
-          <p className="text-sm text-text-secondary leading-relaxed bg-surface-muted rounded-xl p-4">{task.description}</p>
+          <div className={`rounded-xl p-4 ${task.description.startsWith('**How to do this task:**') ? 'bg-notion-bg-hover border border-notion-border' : 'bg-surface-muted'}`}>
+            {task.description.startsWith('**How to do this task:**') ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span className="text-sm font-semibold text-notion-text">AI Supervisor Guidance</span>
+                </div>
+                <div className="text-sm text-notion-text-secondary leading-relaxed whitespace-pre-line">
+                  {task.description.split('\n').map((line, i) => {
+                    if (line.startsWith('**') && line.endsWith('**')) {
+                      return <p key={i} className="font-semibold text-notion-text mb-1">{line.replace(/\*\*/g, '')}</p>
+                    }
+                    if (line.match(/^\d+\./)) {
+                      return <p key={i} className="text-sm text-notion-text-secondary ml-4 mb-0.5">{line}</p>
+                    }
+                    return <p key={i} className="text-sm text-notion-text-secondary mb-0.5">{line}</p>
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-text-secondary leading-relaxed">{task.description}</p>
+            )}
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">

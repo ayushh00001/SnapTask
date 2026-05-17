@@ -34,7 +34,7 @@ async function tryGemini(prompt: string): Promise<string | null> {
 
 type Intent =
   | 'greeting' | 'assign' | 'overdue' | 'progress' | 'suggest'
-  | 'members' | 'tasks' | 'status' | 'thanks' | 'help' | 'generate' | 'unknown'
+  | 'members' | 'tasks' | 'status' | 'thanks' | 'help' | 'generate' | 'guide' | 'unknown'
 
 function detectIntent(q: string): Intent {
   if (/\b(hi|hello|hey|sup|howdy|good\s*(morning|afternoon|evening))\b/.test(q)) return 'greeting'
@@ -47,6 +47,7 @@ function detectIntent(q: string): Intent {
   if (/\b(how are|status|what can|help|capabilities)\b/.test(q)) return 'help'
   if (/\b(thanks|thank|appreciate|great|awesome|perfect)\b/.test(q)) return 'thanks'
   if (/\b(generate|create|plan|new project|make.*project|build.*project|start.*project)\b/.test(q)) return 'generate'
+  if (/\b(how (to|do|can|should|would)|guide|instructions|step by step|help me with|walk me through|what.*do.*for|approach)/.test(q)) return 'guide'
   return 'unknown'
 }
 
@@ -63,7 +64,7 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
 
   switch (intent) {
     case 'greeting':
-      return `Hello! I'm SnapTask AI Agent, your project assistant for **${context.projectName}**. I can:\n• **Assign tasks** to team members\n• **Review progress** and flag risks\n• **Suggest improvements**\n• List **team members** and their work\n\nWhat would you like help with?`
+      return `Hi team! I'm the **AI Supervisor** for **${context.projectName}**. I'm here to guide you through every step.\n\n**I can help you with:**\n• **Assigning tasks** to the right people\n• **Reviewing progress** and flagging risks\n• **Giving step-by-step instructions** for any task\n• **Suggesting improvements** to keep things on track\n\nWhat do you need help with?`
 
     case 'assign':
       if (unassigned.length === 0) return '✅ All tasks already have assignees. Nice work!'
@@ -144,6 +145,20 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
       }
       return `I can help plan this project! Here's what I recommend:\n\n1. Go to the **Projects page**\n2. Click **"New project"**\n3. Describe your project in detail\n4. Click **"Generate with AI"**\n\nThe AI will:\n• Create project phases\n• Generate tasks for each phase\n• **Auto-assign tasks to team members** equally\n• Set priorities and estimates\n\nWant me to suggest a project structure based on "${context.projectName}"?\n\n**Suggested phases:**\n• Planning & Research\n• Design & Architecture\n• Development\n• Testing & QA\n• Deployment & Launch\n\nSay **"yes"** and I'll create this structure for you!`
 
+    case 'guide': {
+      const query = q.replace(/\b(how (to|do|can|should|would)|guide|instructions|step by step|help me with|walk me through)\b/g, '').trim()
+      const matchingTask = context.tasks.find(t => query && t.title.toLowerCase().includes(query))
+      if (matchingTask) {
+        return `**How to approach "${matchingTask.title}"**\n\nHere's a step-by-step guide:\n\n1. **Understand the goal** — This task is part of ${context.projectName}. Make sure you know what the end result should look like.\n2. **Break it down** — Split this into smaller sub-tasks in the task detail view.\n3. **Get started** — Move it to "In Progress" when you begin working on it.\n4. **Ask questions** — Use the comments section if you need clarification.\n5. **Submit for review** — Move to "Review" when done so someone can check your work.\n\n**Need more specific guidance?** Let me know what part you're stuck on and I'll give you more detailed help.`
+      }
+      const phase = context.tasks.filter(t => t.status !== 'done')
+      if (phase.length === 0) return 'All tasks are done! Great work team!'
+      const nextTask = phase.find(t => t.status === 'todo' || t.status === 'backlog')
+      if (nextTask) {
+        return `**Next task to work on:**\n\n» "${nextTask.title}" (${nextTask.priority} priority${nextTask.assignee ? `, assigned to ${nextTask.assignee}` : ', unassigned'})\n\n**How to start:**\n1. Read the task description for guidance\n2. Break it into smaller steps\n3. Move it to "In Progress" when you begin\n4. Comment if you have questions\n\nWant me to give you more detailed instructions for this specific task?`
+      }
+      return `**General tips for working on this project:**\n\n• Focus on one task at a time — move it through the full workflow before starting another\n• Update task status as you go so the team can see progress\n• Use subtasks to break down complex work\n• Comment on tasks when you need help or input\n• Move completed work to "Review" for feedback before marking "Done"`
+    }
     case 'help':
       return `Here's what I can do:\n\n• **Assign tasks** — "Assign tasks to the team"\n• **Check progress** — "How is the project going?"\n• **Find overdue items** — "Show me overdue tasks"\n• **Suggest improvements** — "Any suggestions?"\n• **List members** — "Who is on the team?"\n• **Show tasks** — "What tasks do we have?"\n• **Generate projects** — "Create a new project"\n\nWhat would you like?`
 
@@ -153,7 +168,7 @@ function localReply(messages: ChatMessage[], context: ProjectContext): string {
         `I don't have a specific answer for that. Try asking me about:`,
         `I can't quite parse that. I work best with commands like:`,
       ]
-      return `${phrases[Math.floor(Math.random() * phrases.length)]}\n\n• **"Assign tasks"** — auto-assign unassigned tasks\n• **"How is the project going?"** — progress report\n• **"Show overdue tasks"** — list late items\n• **"Any suggestions?"** — get improvement tips\n• **"Who's on the team?"** — list members\n• **"What can you do?"** — see all capabilities`
+      return `${phrases[Math.floor(Math.random() * phrases.length)]}\n\n• **"Assign tasks"** — auto-assign unassigned tasks\n• **"How is the project going?"** — progress report\n• **"How do I do [task]?"** — get step-by-step guidance\n• **"Show overdue tasks"** — list late items\n• **"Any suggestions?"** — get improvement tips\n• **"Who's on the team?"** — list members\n• **"What can you do?"** — see all capabilities`
   }
 }
 
@@ -166,7 +181,9 @@ export async function POST(req: Request) {
   try {
     const { messages, context } = await req.json() as { messages: ChatMessage[]; context: ProjectContext }
 
-    const systemPrompt = `You are SnapTask AI Agent, a project management assistant. You help teams manage tasks, assign work, review progress, and suggest improvements.
+    const systemPrompt = `You are SnapTask AI Supervisor, a project lead who guides the team through every step. Your role is to act like an experienced team lead helping junior developers.
+
+Your tone: encouraging, clear, and practical. When someone asks how to do a task, give them step-by-step guidance like a mentor would. When reviewing progress, be honest but constructive.
 
 Current project: "${context.projectName}"
 Status: ${context.status}
@@ -178,7 +195,12 @@ ${context.members.map(m => `- ${m.name} (${m.email})`).join('\n')}
 Tasks:
 ${context.tasks.map(t => `- [${t.status}] "${t.title}" (priority: ${t.priority}, assignee: ${t.assignee || 'unassigned'}, due: ${t.due_date || 'no due date'})`).join('\n')}
 
-You are helpful, concise, and proactive. Give clear answers and actionable suggestions. If the user asks you to assign tasks, suggest logical assignments and tell them to say "assign them" to confirm. If they ask for a review, summarize the project health. Keep responses brief and scannable.`
+You are helpful, concise, and proactive. Give clear answers and actionable suggestions.
+- If the user asks HOW to do a specific task, provide step-by-step instructions
+- If they ask about a task by name, check if it exists in the task list and describe how to approach it
+- If the user asks you to assign tasks, suggest logical assignments and tell them to say "assign them" to confirm
+- If they ask for a review, summarize the project health
+- Keep responses brief and scannable`
 
     const conversation = messages.map(m => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`).join('\n')
     const fullPrompt = `${systemPrompt}\n\nConversation:\n${conversation}\n\nAgent:`

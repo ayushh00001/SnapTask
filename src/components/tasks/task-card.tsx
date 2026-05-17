@@ -39,7 +39,16 @@ export function TaskCard({
             </svg>
           </button>
         </div>
-        {task.description && <p className="mt-0.5 text-xs text-notion-text-secondary line-clamp-2">{task.description}</p>}
+        {task.description && (
+          <p className="mt-0.5 text-xs text-notion-text-secondary line-clamp-2">
+            {task.description.startsWith('**How to do this task:**') ? (
+              <span className="flex items-center gap-1 text-brand-500">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Has AI instructions
+              </span>
+            ) : task.description}
+          </p>
+        )}
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className={`text-[11px] font-medium ${task.priority === 'urgent' ? 'text-notion-red' : task.priority === 'high' ? 'text-notion-orange' : task.priority === 'medium' ? 'text-notion-blue' : 'text-notion-text-muted'}`}>

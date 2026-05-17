@@ -136,7 +136,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h1 className="text-lg sm:text-xl font-bold text-notion-text truncate">{project.name}</h1>
             <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
           </div>
-          {project.description && <p className="mt-0.5 text-sm text-notion-text-secondary line-clamp-2">{project.description}</p>}
+          {project.description && (
+            project.description.startsWith('## Project Guide') ? (
+              <details className="mt-2 group">
+                <summary className="text-sm text-brand-500 cursor-pointer hover:text-brand-600 transition-colors font-medium flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  View AI Supervisor Guide
+                </summary>
+                <div className="mt-2 p-3 bg-notion-bg-hover border border-notion-border text-sm text-notion-text-secondary leading-relaxed whitespace-pre-line">
+                  {project.description.split('\n').map((line, i) => {
+                    if (line.startsWith('## ')) return <h3 key={i} className="font-semibold text-notion-text mb-1 text-base">{line.replace('## ', '')}</h3>
+                    if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-semibold text-notion-text mb-1">{line.replace(/\*\*/g, '')}</p>
+                    if (line.match(/^\d+\./)) return <p key={i} className="ml-4 mb-0.5">{line}</p>
+                    if (line.startsWith('•')) return <p key={i} className="ml-2 mb-0.5">{line}</p>
+                    return <p key={i} className="mb-0.5">{line}</p>
+                  })}
+                </div>
+              </details>
+            ) : (
+              <p className="mt-0.5 text-sm text-notion-text-secondary line-clamp-2">{project.description}</p>
+            )
+          )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
           <Button variant="accent" onClick={() => setShowAiAgent(true)} size="sm">
