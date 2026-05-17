@@ -24,7 +24,7 @@ export function AiAgentChat({
 }) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Hi! I'm your **AI Supervisor** for **${project.name}**. 👋\n\nThink of me as your senior dev who guides you through everything.\n\n**I can help with anything — just ask:**\n• **"How do I build this project?"** — I'll break it down step by step\n• **"Assign tasks"** — I'll distribute them evenly to the team\n• **"How's it going?"** — progress report with stats\n• **"How do I do [task]?"** — step-by-step guidance for any task\n• **Any question at all** — coding, design, planning, troubleshooting\n\nAsk me anything — I'm here like ChatGPT but focused on your project!`,
+    content: `Hey! I'm your **AI Supervisor** for **${project.name}** 👋\n\nI'm like a senior dev who's here to help with everything. **Just ask me anything:**\n\n• **"How do I build this project?"** — I'll break it down step by step\n• **"Assign tasks"** — I'll distribute them to the team\n• **"How's it going?"** — progress report\n• **"How do I do [task]?"** — step-by-step guidance\n• **Anything else** — coding, planning, questions\n\nTry saying **"how do I build this?"** or **"assign tasks"** or just ask me anything!`,
   }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)

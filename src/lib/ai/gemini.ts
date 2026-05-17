@@ -34,21 +34,17 @@ function cleanJson(text: string): string {
   return match ? match[0] : text
 }
 
-async function tryGemini(prompt: string, timeoutMs = 8000): Promise<string | null> {
+async function tryGemini(prompt: string, timeoutMs = 1000): Promise<string | null> {
   if (!genAI) return null
   const models = ['gemini-2.0-flash', 'gemini-1.5-flash']
-  for (const modelName of models) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName })
-      const result = await Promise.race([
-        model.generateContent([{ text: prompt }]),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
-      ])
-      const text = (result as Awaited<ReturnType<typeof model.generateContent>>).response.text()
-      if (text && text.length > 10) return text
-    } catch {
-      continue
-    }
+  const results = await Promise.allSettled(models.map(modelName =>
+    Promise.race([
+      genAI!.getGenerativeModel({ model: modelName }).generateContent([{ text: prompt }]),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+    ]).then(r => (r as Awaited<ReturnType<ReturnType<typeof genAI.getGenerativeModel>['generateContent']>>).response.text())
+  ))
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value && r.value.length > 10) return r.value
   }
   return null
 }
