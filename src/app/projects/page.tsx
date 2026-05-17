@@ -21,6 +21,7 @@ export default function ProjectsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [newDesc, setNewDesc] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
+  const [progressMsg, setProgressMsg] = useState('')
   const router = useRouter()
 
   async function loadProjects() {
@@ -50,7 +51,7 @@ export default function ProjectsPage() {
     if (!newDesc.trim()) { toast.error('Describe what you want to build'); return }
     setAiLoading(true)
     try {
-      const plan = await extractTasksFromText(newDesc)
+      const plan = await extractTasksFromText(newDesc, (msg) => setProgressMsg(msg))
       const supabase = createClient()
       const { data: userData } = await supabase.auth.getUser()
       if (!userData.user) return
@@ -73,10 +74,14 @@ export default function ProjectsPage() {
 
       const tasksWithAssignees = distributeTasksEvenly(plan.tasks, members)
 
+      const fullGuide = plan.research
+        ? `${plan.research}\n\n---\n\n${plan.guide}`
+        : (plan.guide || plan.description || newDesc)
+
       const { data: project, error } = await supabase.from('projects').insert({
         org_id: orgId,
         name: plan.projectName || 'New Project',
-        description: plan.guide || plan.description || newDesc,
+        description: fullGuide,
         status: 'active',
         created_by: userData.user.id,
       }).select().single()
@@ -182,10 +187,16 @@ export default function ProjectsPage() {
               placeholder="Example: Build a landing page for my SaaS startup with pricing, features, and a contact form. Use Next.js and Tailwind CSS."
               autoFocus
             />
-            <p className="text-xs text-notion-text-muted">AI will analyze your description, break it into tasks, and create a complete project plan with step-by-step instructions.</p>
+            <p className="text-xs text-notion-text-muted">AI will research your project, create tasks with step-by-step instructions, and guide you through building it.</p>
           </div>
+          {aiLoading && progressMsg && (
+            <div className="flex items-center gap-2 text-sm text-brand-600">
+              <span className="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+              {progressMsg}
+            </div>
+          )}
           <Button onClick={handleCreate} loading={aiLoading} className="w-full" disabled={!newDesc.trim()}>
-            {aiLoading ? 'AI is analyzing and creating tasks...' : 'Create project with AI'}
+            {aiLoading ? (progressMsg || 'Working...') : 'Create project with AI'}
           </Button>
         </div>
       </Modal>
