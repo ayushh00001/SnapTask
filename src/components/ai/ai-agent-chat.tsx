@@ -24,7 +24,7 @@ export function AiAgentChat({
 }) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Hi! I'm your **AI Supervisor** for **${project.name}**. 👋\n\nThink of me as your team lead who's here to guide you through every step.\n\n**Here's what I can do for you:**\n• **Assign tasks** — say "assign tasks" and I'll distribute them evenly\n• **Review progress** — "how are we doing?"\n• **Give instructions** — "how do I do this task?"\n• **Suggest improvements** — "any suggestions?"\n• **Flag risks** — "any risks?"\n\n**Try saying:**\n» **"assign tasks"** to auto-assign unassigned tasks\n» **"how's it going?"** for a progress report\n» **"help me with [task name]"** for step-by-step guidance\n\nI'm here to help! What would you like to do?`,
+    content: `Hi! I'm your **AI Supervisor** for **${project.name}**. 👋\n\nThink of me as your senior dev who guides you through everything.\n\n**I can help with anything — just ask:**\n• **"How do I build this project?"** — I'll break it down step by step\n• **"Assign tasks"** — I'll distribute them evenly to the team\n• **"How's it going?"** — progress report with stats\n• **"How do I do [task]?"** — step-by-step guidance for any task\n• **Any question at all** — coding, design, planning, troubleshooting\n\nAsk me anything — I'm here like ChatGPT but focused on your project!`,
   }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -155,7 +155,7 @@ export function AiAgentChat({
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-          placeholder="Ask AI to assign tasks, review progress..."
+          placeholder="Ask the AI Supervisor anything..."
           className="flex-1 bg-white border border-border rounded-xl px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all"
           disabled={loading}
         />

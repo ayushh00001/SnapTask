@@ -128,8 +128,8 @@ export default function ProjectsPage() {
         : 'Project created with AI!')
       setShowCreate(false); setNewName(''); setNewDesc('')
       router.push(`/projects/${project.id}`)
-    } catch {
-      toast.error('AI extraction failed. Try typing manually.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'AI extraction failed. Try typing manually.')
     } finally {
       setAiLoading(false)
     }
