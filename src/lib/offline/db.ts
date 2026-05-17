@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie from 'dexie'
 
 interface OfflineProject {
   id: string
@@ -28,11 +28,7 @@ interface SyncQueue {
   retries: number
 }
 
-const db = new Dexie('SnapTaskDB') as Dexie & {
-  projects: EntityTable<OfflineProject, 'id'>
-  tasks: EntityTable<OfflineTask, 'id'>
-  syncQueue: EntityTable<SyncQueue, number>
-}
+const db = new Dexie('SnapTaskDB')
 
 db.version(1).stores({
   projects: 'id, org_id, updated_at, synced_at, deleted',

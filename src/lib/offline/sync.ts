@@ -11,7 +11,7 @@ export async function enqueueSync(
   action: 'create' | 'update' | 'delete',
   payload: unknown,
 ) {
-  await db.syncQueue.add({
+  await db.table('syncQueue').add({
     entity_type: entityType,
     entity_id: entityId,
     action,
@@ -28,7 +28,7 @@ export async function processQueue() {
   const supabase = createClient()
 
   try {
-    const items = await db.syncQueue.toArray()
+    const items = await db.table('syncQueue').toArray()
     for (const item of items) {
       try {
         const table = item.entity_type === 'project' ? 'projects' : 'tasks'
@@ -44,9 +44,12 @@ export async function processQueue() {
             .eq('id', item.entity_id)
           if (error) throw error
         }
-        await db.syncQueue.delete(item.id!)
+        await db.table('syncQueue').delete(item.id!)
       } catch (e) {
-        await db.syncQueue.update(item.id!, { retries: item.retries + 1 })
+        const record = await db.table('syncQueue').get(item.id!)
+        if (record) {
+          await db.table('syncQueue').update(item.id!, { retries: record.retries + 1 })
+        }
       }
     }
   } finally {

@@ -70,8 +70,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setLoading(false)
     }
     load()
-
-    const supabase = createClient()
     const channel = supabase.channel(`project-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${id}` }, payload => {
         if (payload.eventType === 'INSERT') setTasks(prev => [...prev, payload.new as ProjectTask])
