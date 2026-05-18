@@ -152,7 +152,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 animate-fade-in">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-lg sm:text-xl font-bold text-notion-text truncate">{project.name}</h1>
@@ -211,12 +211,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        {statusColumns.map(col => {
+        {statusColumns.map((col, ci) => {
           const colTasks = tasks.filter(t => t.status === col.key)
           return (
             <div
               key={col.key}
-              className="bg-notion-bg-secondary p-3 min-h-[200px]"
+              className="bg-notion-bg-secondary p-3 min-h-[200px] animate-slide-up"
+              style={{ animationDelay: `${ci * 80}ms` }}
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
                 const taskId = e.dataTransfer.getData('taskId')
@@ -228,8 +229,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <span className="text-xs text-notion-text-muted">{colTasks.length}</span>
               </div>
               <div className="space-y-1.5">
-                {colTasks.map(task => (
-                  <TaskCard key={task.id} task={task} members={members} onDelete={handleDeleteTask} onUpdate={() => {}} />
+                {colTasks.map((task, ti) => (
+                  <div key={task.id} className="animate-slide-up" style={{ animationDelay: `${ti * 40}ms` }}>
+                    <TaskCard task={task} members={members} onDelete={handleDeleteTask} onUpdate={() => {}} />
+                  </div>
                 ))}
                 <button
                   onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }}

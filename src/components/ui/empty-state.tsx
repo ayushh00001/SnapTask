@@ -54,8 +54,8 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4">
-      <div className="w-32 h-32 mb-6">{illustrations[type] || illustrations.projects}</div>
+    <div className="flex flex-col items-center justify-center py-16 px-4 animate-fade-in">
+      <div className="w-32 h-32 mb-6 animate-float">{illustrations[type] || illustrations.projects}</div>
       <h3 className="text-lg font-semibold text-text-primary text-center">{title}</h3>
       {description && <p className="text-sm text-text-secondary text-center mt-1.5 max-w-sm">{description}</p>}
       {action && <div className="mt-6">{action}</div>}

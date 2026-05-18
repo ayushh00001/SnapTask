@@ -65,13 +65,13 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-colors duration-100',
+                'flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-all duration-150',
                 active
-                  ? 'bg-notion-bg-selected text-notion-text'
+                  ? 'bg-notion-bg-selected text-notion-text font-medium'
                   : 'text-notion-text-secondary hover:bg-notion-bg-hover hover:text-notion-text',
               )}
             >
-              <svg className={cn('w-4 h-4 flex-shrink-0', active ? 'text-notion-text' : 'text-notion-text-muted')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className={cn('w-4 h-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-110', active ? 'text-notion-text' : 'text-notion-text-muted')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
               </svg>
               {item.label}

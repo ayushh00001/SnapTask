@@ -32,18 +32,18 @@ export default function LandingPage() {
       <section className="pt-32 pb-24 sm:pt-40 sm:pb-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-sm font-medium mb-8 animate-fade-in">
               <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
               AI-powered project management
             </div>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-[#0b0d14] tracking-tight leading-[1.1]">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-[#0b0d14] tracking-tight leading-[1.1] animate-slide-up">
               Save your team{' '}
               <span className="bg-gradient-to-r from-brand-600 to-brand-400 bg-clip-text text-transparent">5 hours/week</span>
             </h1>
-            <p className="mt-6 text-lg sm:text-xl text-text-secondary leading-relaxed max-w-xl mx-auto">
+            <p className="mt-6 text-lg sm:text-xl text-text-secondary leading-relaxed max-w-xl mx-auto animate-slide-up" style={{ animationDelay: '100ms' }}>
               Take a photo of your notes or speak your goal — AI instantly creates a structured project plan with tasks, timelines, and team assignments.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-4">
+            <div className="mt-10 flex items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
               <Link href="/signup" className="inline-flex items-center px-8 py-3.5 rounded-xl bg-[#0b0d14] text-white font-semibold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 text-base">
                 Start free
                 <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

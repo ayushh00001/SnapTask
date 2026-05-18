@@ -26,7 +26,7 @@ export function TaskCard({
         draggable
         onDragStart={e => e.dataTransfer.setData('taskId', task.id)}
         onClick={() => setShowDetail(true)}
-        className="bg-notion-bg px-3 py-2.5 border border-notion-border cursor-grab active:cursor-grabbing hover:bg-notion-bg-hover transition-colors duration-100 group"
+        className="bg-notion-bg px-3 py-2.5 border border-notion-border cursor-grab active:cursor-grabbing hover:bg-notion-bg-hover hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 group animate-slide-up"
       >
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm text-notion-text">{task.title}</p>

@@ -165,9 +165,9 @@ export default function ProjectsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map(project => (
-            <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group">
-              <Card className="h-full border-border-light hover:border-border transition-colors">
+          {projects.map((project, i) => (
+            <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <Card className="h-full border-border-light hover:border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <h3 className="font-medium text-sm text-notion-text truncate group-hover:text-notion-accent transition-colors">{project.name}</h3>

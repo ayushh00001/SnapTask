@@ -36,9 +36,9 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
-      <div className="fixed inset-0 bg-[#37352f]/60" onClick={onClose} />
+      <div className="fixed inset-0 bg-[#37352f]/60 animate-fade-in" onClick={onClose} />
       <div className={cn(
-        'relative bg-notion-bg max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl',
+        'relative bg-notion-bg max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl animate-scale-in',
         className,
       )}>
         {title && (

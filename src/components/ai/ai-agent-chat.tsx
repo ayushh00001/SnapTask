@@ -119,7 +119,7 @@ export function AiAgentChat({
       )}
       <div className="flex-1 overflow-y-auto px-1 space-y-2">
         {messages.map((msg, i) => (
-          <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+          <div key={i} className={cn('flex animate-slide-up', msg.role === 'user' ? 'justify-end' : 'justify-start')} style={{ animationDelay: i > 0 ? '0ms' : '0ms' }}>
             <div
               className={cn(
                 'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',

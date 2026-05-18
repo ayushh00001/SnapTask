@@ -59,8 +59,8 @@ export function ActivityFeed({ orgId, limit = 10 }: { orgId?: string; limit?: nu
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
-        {activities.map(a => (
-          <div key={a.id} className="flex items-start gap-3 py-2.5">
+        {activities.map((a, i) => (
+          <div key={a.id} className="flex items-start gap-3 py-2.5 animate-slide-up" style={{ animationDelay: `${i * 40}ms` }}>
             <div className={`w-6 h-6 ${actionColors[a.action] || 'bg-notion-gray'} flex items-center justify-center flex-shrink-0 mt-0.5`}>
               <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={actionIcons[a.action] || 'M13 10V3L4 14h7v7l9-11h-7z'} />
