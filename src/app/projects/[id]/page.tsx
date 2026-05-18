@@ -210,14 +210,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <NextStepBar tasks={tasks} onOpenAgent={() => setShowAiAgent(true)} />
       )}
 
-      <div className="flex items-center gap-4 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-        <span>Tasks in state: <strong>{tasks.length}</strong></span>
-        <span>Todo: <strong>{tasks.filter(t => t.status === 'todo').length}</strong></span>
-        <span>In Progress: <strong>{tasks.filter(t => t.status === 'in_progress').length}</strong></span>
-        <span>Done: <strong>{tasks.filter(t => t.status === 'done').length}</strong></span>
-        <button onClick={() => refreshTasks()} className="ml-auto underline hover:no-underline">Refresh</button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {statusColumns.map(col => {
           const colTasks = tasks.filter(t => t.status === col.key)
