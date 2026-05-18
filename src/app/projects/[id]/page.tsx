@@ -53,12 +53,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const supabase = getSupabase()
     const [phasesRes, tasksRes] = await Promise.all([
       supabase.from('project_phases').select('*').eq('project_id', id).order('order'),
-      supabase.from('tasks').select('*, assignee:assignee_id(*)').eq('project_id', id),
+      supabase.from('tasks').select('*').eq('project_id', id),
     ])
     setPhases(phasesRes.data || [])
     if (tasksRes.error) console.error('Task fetch error:', tasksRes.error)
-    const loaded = tasksRes.data || []
-    setTasks(loaded)
+    setTasks(tasksRes.data || [])
   }
 
   useEffect(() => {
@@ -210,6 +209,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       {tasks.length > 0 && (
         <NextStepBar tasks={tasks} onOpenAgent={() => setShowAiAgent(true)} />
       )}
+
+      <div className="flex items-center gap-4 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+        <span>Tasks in state: <strong>{tasks.length}</strong></span>
+        <span>Todo: <strong>{tasks.filter(t => t.status === 'todo').length}</strong></span>
+        <span>In Progress: <strong>{tasks.filter(t => t.status === 'in_progress').length}</strong></span>
+        <span>Done: <strong>{tasks.filter(t => t.status === 'done').length}</strong></span>
+        <button onClick={() => refreshTasks()} className="ml-auto underline hover:no-underline">Refresh</button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {statusColumns.map(col => {
