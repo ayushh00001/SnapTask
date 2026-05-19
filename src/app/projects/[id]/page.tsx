@@ -16,10 +16,13 @@ import { AiInsights } from '@/components/ai/ai-insights'
 import { AiAgentChat } from '@/components/ai/ai-agent-chat'
 import { notifyTaskCompleted } from '@/lib/notifications'
 import type { Project, ProjectPhase, ProjectTask, Profile } from '@/lib/types'
-import { statusColor } from '@/lib/utils'
+import { statusColor, formatDateShort, cn, isOverdue } from '@/lib/utils'
 import { toast } from 'sonner'
+import { TaskDetailModal } from '@/components/tasks/task-detail-modal'
+import { Confetti } from '@/components/ui/confetti'
 
 type SupabaseClient = ReturnType<typeof createClient>
+type ViewMode = 'kanban' | 'list' | 'calendar'
 
 const statusColumns = [
   { key: 'backlog', label: 'Backlog' },
@@ -28,6 +31,24 @@ const statusColumns = [
   { key: 'review', label: 'Review' },
   { key: 'done', label: 'Done' },
 ]
+
+interface Milestone {
+  id: string
+  project_id: string
+  name: string
+  description: string | null
+  due_date: string | null
+  status: 'pending' | 'in_progress' | 'completed'
+  order_index: number
+}
+
+interface TimeEntry {
+  id: string
+  task_id: string
+  started_at: string
+  ended_at: string | null
+  duration_minutes: number | null
+}
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -40,8 +61,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
   const [showAiAgent, setShowAiAgent] = useState(false)
+  const [showShipModal, setShowShipModal] = useState(false)
+  const [showTemplateSave, setShowTemplateSave] = useState(false)
+  const [templateName, setTemplateName] = useState('')
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban')
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [showMilestoneForm, setShowMilestoneForm] = useState(false)
+  const [newMilestoneName, setNewMilestoneName] = useState('')
+  const [newMilestoneDate, setNewMilestoneDate] = useState('')
+  const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null)
+  const [timeEntries, setTimeEntries] = useState<Record<string, TimeEntry[]>>({})
+  const [activeTimers, setActiveTimers] = useState<Record<string, string>>({})
+  const [confettiActive, setConfettiActive] = useState(false)
   const supabaseRef = useRef<SupabaseClient | null>(null)
 
   const getSupabase = (): SupabaseClient => {
@@ -58,6 +91,34 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setPhases(phasesRes.data || [])
     if (tasksRes.error) console.error('Task fetch error:', tasksRes.error)
     setTasks(tasksRes.data || [])
+  }
+
+  const refreshMilestones = async () => {
+    const supabase = getSupabase()
+    const { data } = await supabase.from('milestones').select('*').eq('project_id', id).order('order_index')
+    setMilestones(data || [])
+  }
+
+  const refreshTimeEntries = async () => {
+    const supabase = getSupabase()
+    const taskIds = tasks.map(t => t.id)
+    if (taskIds.length === 0) return
+    const { data } = await supabase.from('time_entries').select('*').in('task_id', taskIds)
+    const grouped: Record<string, TimeEntry[]> = {}
+    ;(data || []).forEach(e => {
+      if (!grouped[e.task_id]) grouped[e.task_id] = []
+      grouped[e.task_id].push(e)
+    })
+    setTimeEntries(grouped)
+
+    const { data: userData } = await supabase.auth.getUser()
+    if (userData.user) {
+      const running: Record<string, string> = {}
+      ;(data || []).filter(e => e.user_id === userData.user!.id && !e.ended_at).forEach(e => {
+        running[e.task_id] = e.id
+      })
+      setActiveTimers(running)
+    }
   }
 
   useEffect(() => {
@@ -113,9 +174,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return () => { supabase.removeChannel(channel) }
   }, [id, router])
 
+  useEffect(() => { if (tasks.length > 0) refreshTimeEntries() }, [tasks.length])
+
   const handleDrop = async (taskId: string, newStatus: string) => {
     const supabase = getSupabase()
     const task = tasks.find(t => t.id === taskId)
+    if (!task) return
     await supabase.from('tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', taskId)
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as ProjectTask['status'] } : t))
 
@@ -143,12 +207,97 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     router.push('/projects')
   }
 
+  const handleAddMilestone = async () => {
+    if (!newMilestoneName.trim()) return
+    const supabase = getSupabase()
+    const { error } = await supabase.from('milestones').insert({
+      project_id: id,
+      name: newMilestoneName,
+      due_date: newMilestoneDate || null,
+      order_index: milestones.length,
+    })
+    if (error) { toast.error(error.message); return }
+    setNewMilestoneName(''); setNewMilestoneDate(''); setShowMilestoneForm(false)
+    refreshMilestones()
+    toast.success('Milestone added')
+  }
+
+  const handleToggleMilestone = async (m: Milestone) => {
+    const next = m.status === 'completed' ? 'pending' : 'completed'
+    const supabase = getSupabase()
+    await supabase.from('milestones').update({ status: next, updated_at: new Date().toISOString() }).eq('id', m.id)
+    refreshMilestones()
+  }
+
+  const handleStartTimer = async (taskId: string) => {
+    if (activeTimers[taskId]) return
+    const supabase = getSupabase()
+    const { data: userData } = await supabase.auth.getUser()
+    if (!userData.user) return
+    const { data, error } = await supabase.from('time_entries').insert({
+      task_id: taskId,
+      user_id: userData.user.id,
+      started_at: new Date().toISOString(),
+    }).select().single()
+    if (error) { toast.error(error.message); return }
+    setActiveTimers(prev => ({ ...prev, [taskId]: data.id }))
+    toast.success('Timer started')
+  }
+
+  const handleStopTimer = async (taskId: string) => {
+    const entryId = activeTimers[taskId]
+    if (!entryId) return
+    const supabase = getSupabase()
+    const entry = timeEntries[taskId]?.find(e => e.id === entryId)
+    const startedAt = entry?.started_at || new Date().toISOString()
+    const durationMin = Math.round((Date.now() - new Date(startedAt).getTime()) / 60000)
+    await supabase.from('time_entries').update({
+      ended_at: new Date().toISOString(),
+      duration_minutes: Math.max(1, durationMin),
+    }).eq('id', entryId)
+    setActiveTimers(prev => { const n = { ...prev }; delete n[taskId]; return n })
+    refreshTimeEntries()
+    toast.success(`Logged ${Math.max(1, durationMin)}m`)
+  }
+
+  const handleShip = async () => {
+    const supabase = getSupabase()
+    const { data: userData } = await supabase.auth.getUser()
+    if (!userData.user || !orgId) return
+    const doneTasks = tasks.filter(t => t.status === 'done')
+    const timelineDays = project?.created_at
+      ? Math.ceil((Date.now() - new Date(project.created_at).getTime()) / 86400000)
+      : null
+    await supabase.from('ship_logs').insert({
+      project_id: id,
+      shipped_by: userData.user.id,
+      completed_tasks: doneTasks.length,
+      total_tasks: tasks.length,
+      timeline_days: timelineDays,
+      insights: {
+        completion_rate: Math.round(doneTasks.length / tasks.length * 100),
+        team_size: members.length,
+      },
+      retrospective: generateRetrospective(tasks, members),
+    })
+    await supabase.from('projects').update({ status: 'completed' }).eq('id', id)
+    toast.success('Project shipped!')
+    setShowShipModal(false)
+    setConfettiActive(true)
+    refreshTasks()
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin w-4 h-4 border-[2px] border-notion-text border-t-transparent rounded-full" />
     </div>
   )
   if (!project) return null
+
+  const doneTasks = tasks.filter(t => t.status === 'done').length
+  const totalTasks = tasks.length
+  const pct = totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) : 0
+  const allDone = totalTasks > 0 && doneTasks === totalTasks
 
   return (
     <div className="space-y-6">
@@ -158,6 +307,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <h1 className="text-lg sm:text-xl font-bold text-notion-text truncate">{project.name}</h1>
             <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
           </div>
+          {project.photo_url && (
+            <div className="mt-2 rounded-xl overflow-hidden border border-notion-border max-h-48">
+              <img src={project.photo_url} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
           {project.description && (
             project.description.startsWith('## Project Guide') ? (
               <details className="mt-2 group">
@@ -182,69 +336,227 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
           <Button variant="accent" onClick={() => setShowAiAgent(true)} size="sm">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Agent
           </Button>
           <Button variant="secondary" onClick={() => setShowAiModal(true)} size="sm">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             Insights
+          </Button>
+          {allDone && (
+            <Button variant="accent" onClick={() => setShowShipModal(true)} size="sm">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Ship
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => { setTemplateName(project.name); setShowTemplateSave(true) }} size="sm">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Template
           </Button>
           <Button variant="secondary" onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }} size="sm">+ Add</Button>
           <Button variant="danger" onClick={handleDeleteProject} size="sm">Delete</Button>
         </div>
       </div>
 
-      {phases.length > 0 && (
+      <div className="flex items-center justify-between">
         <div className="flex gap-2 flex-wrap">
           {phases.map(phase => (
             <Badge key={phase.id} color="blue">{phase.name}</Badge>
           ))}
         </div>
-      )}
+        <div className="flex items-center gap-1 bg-notion-bg-hover rounded-lg p-0.5">
+          {(['kanban', 'list', 'calendar'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={cn(
+                'px-2.5 py-1 rounded text-xs font-medium transition-all capitalize',
+                viewMode === mode
+                  ? 'bg-notion-bg shadow-sm text-notion-text'
+                  : 'text-notion-text-muted hover:text-notion-text'
+              )}
+            >
+              {mode === 'kanban' && (
+                <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+              )}
+              {mode === 'list' && (
+                <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              )}
+              {mode === 'calendar' && (
+                <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              )}
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {tasks.length > 0 && (
+      {totalTasks > 0 && (
         <NextStepBar tasks={tasks} onOpenAgent={() => setShowAiAgent(true)} />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        {statusColumns.map((col, ci) => {
-          const colTasks = tasks.filter(t => t.status === col.key)
-          return (
-            <div
-              key={col.key}
-              className="bg-notion-bg-secondary p-3 min-h-[200px] animate-slide-up"
-              style={{ animationDelay: `${ci * 80}ms` }}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => {
-                const taskId = e.dataTransfer.getData('taskId')
-                if (taskId) handleDrop(taskId, col.key)
-              }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-xs text-notion-text-secondary uppercase tracking-wide">{col.label}</h3>
-                <span className="text-xs text-notion-text-muted">{colTasks.length}</span>
-              </div>
-              <div className="space-y-1.5">
-                {colTasks.map((task, ti) => (
-                  <div key={task.id} className="animate-slide-up" style={{ animationDelay: `${ti * 40}ms` }}>
-                    <TaskCard task={task} members={members} onDelete={handleDeleteTask} onUpdate={() => {}} />
-                  </div>
-                ))}
-                <button
-                  onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }}
-                  className="w-full py-1.5 text-xs text-notion-text-muted hover:text-notion-text-secondary hover:bg-notion-bg-hover transition-colors"
-                >
-                  + Add
-                </button>
-              </div>
-            </div>
-          )
-        })}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowMilestoneForm(!showMilestoneForm)}
+          className="text-xs text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover px-2 py-1 rounded transition-colors"
+        >
+          + Milestone
+        </button>
       </div>
+
+      {milestones.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {milestones.map(m => (
+            <button
+              key={m.id}
+              onClick={() => handleToggleMilestone(m)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs whitespace-nowrap transition-all',
+                m.status === 'completed'
+                  ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                  : m.status === 'in_progress'
+                  ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                  : 'border-border text-notion-text-secondary'
+              )}
+            >
+              <div className={cn(
+                'w-3 h-3 rounded-full border-2',
+                m.status === 'completed' ? 'bg-emerald-500 border-emerald-500' : 'border-current'
+              )}>
+                {m.status === 'completed' && (
+                  <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+              {m.name}
+              {m.due_date && <span className="text-notion-text-muted">{formatDateShort(m.due_date)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showMilestoneForm && (
+        <div className="flex gap-2 items-end">
+          <Input placeholder="Milestone name" value={newMilestoneName} onChange={e => setNewMilestoneName(e.target.value)} />
+          <Input type="date" value={newMilestoneDate} onChange={e => setNewMilestoneDate(e.target.value)} />
+          <Button variant="secondary" size="sm" onClick={handleAddMilestone} disabled={!newMilestoneName.trim()}>Add</Button>
+        </div>
+      )}
+
+      {viewMode === 'kanban' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+          {statusColumns.map((col, ci) => {
+            const colTasks = tasks.filter(t => t.status === col.key)
+            return (
+              <div
+                key={col.key}
+                className="bg-notion-bg-secondary p-3 min-h-[200px] animate-slide-up"
+                style={{ animationDelay: `${ci * 80}ms` }}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  const taskId = e.dataTransfer.getData('taskId')
+                  if (taskId) handleDrop(taskId, col.key)
+                }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-xs text-notion-text-secondary uppercase tracking-wide">{col.label}</h3>
+                  <span className="text-xs text-notion-text-muted">{colTasks.length}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {colTasks.map((task, ti) => (
+                    <div key={task.id} className="animate-slide-up" style={{ animationDelay: `${ti * 40}ms` }}>
+                      <TaskCard
+                        task={task}
+                        members={members}
+                        onDelete={handleDeleteTask}
+                        onUpdate={() => {}}
+                        onClick={() => setSelectedTask(task)}
+                        isTimerRunning={!!activeTimers[task.id]}
+                        onStartTimer={() => handleStartTimer(task.id)}
+                        onStopTimer={() => handleStopTimer(task.id)}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }}
+                    className="w-full py-1.5 text-xs text-notion-text-muted hover:text-notion-text-secondary hover:bg-notion-bg-hover transition-colors"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {viewMode === 'list' && (
+        <div className="bg-notion-bg border border-notion-border rounded-xl overflow-hidden animate-fade-in">
+          <div className="grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-notion-border bg-notion-bg-secondary text-xs font-medium text-notion-text-muted uppercase tracking-wide">
+            <div className="col-span-4">Task</div>
+            <div className="col-span-2">Phase</div>
+            <div className="col-span-2">Assignee</div>
+            <div className="col-span-1">Priority</div>
+            <div className="col-span-1">Status</div>
+            <div className="col-span-1">Due</div>
+            <div className="col-span-1">Time</div>
+          </div>
+          {[...tasks].sort((a, b) => (a.order || 0) - (b.order || 0)).map((task, i) => {
+            const phase = phases.find(p => p.id === task.phase_id)
+            const assignee = members.find(m => m.id === task.assignee_id)
+            const taskTime = timeEntries[task.id]
+            const totalMin = taskTime?.reduce((s, e) => s + (e.duration_minutes || 0), 0) || 0
+            return (
+              <button
+                key={task.id}
+                onClick={() => setSelectedTask(task)}
+                className="grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-notion-border last:border-0 hover:bg-notion-bg-hover transition-colors text-left w-full animate-slide-up"
+                style={{ animationDelay: `${i * 20}ms` }}
+              >
+                <div className="col-span-4 text-sm text-notion-text truncate">{task.title}</div>
+                <div className="col-span-2 text-xs text-notion-text-secondary truncate">{phase?.name || '-'}</div>
+                <div className="col-span-2 text-xs text-notion-text-secondary truncate">{assignee?.name || '-'}</div>
+                <div className="col-span-1">
+                  <Badge color={task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : task.priority === 'medium' ? 'blue' : 'gray'} className="text-[10px] px-1.5">{task.priority}</Badge>
+                </div>
+                <div className="col-span-1 text-xs capitalize text-notion-text-secondary">{task.status.replace('_', ' ')}</div>
+                <div className="col-span-1 text-xs text-notion-text-secondary">{task.due_date ? formatDateShort(task.due_date) : '-'}</div>
+                <div className="col-span-1 text-xs text-notion-text-secondary">{totalMin > 0 ? `${Math.round(totalMin / 60 * 10) / 10}h` : '-'}</div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {viewMode === 'calendar' && (
+        <CalendarView tasks={tasks} phases={phases} onTaskClick={(t) => setSelectedTask(t)} />
+      )}
+
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          members={members}
+          allTasks={tasks}
+          open={true}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={() => { refreshTasks(); refreshTimeEntries() }}
+        />
+      )}
 
       <Modal open={showTaskForm} onClose={() => setShowTaskForm(false)} title="Add task">
         <NewTaskForm
@@ -283,6 +595,60 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <Modal open={showAiModal} onClose={() => setShowAiModal(false)} title="AI Insights" className="max-w-2xl">
         <AiInsights project={project} tasks={tasks} />
       </Modal>
+
+      <Modal open={showShipModal} onClose={() => setShowShipModal(false)} title="Ready to Ship?" className="max-w-md">
+        <div className="space-y-4 text-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-notion-text">Ship this project?</h3>
+          <p className="text-sm text-notion-text-secondary">
+            {doneTasks} of {totalTasks} tasks completed ({pct}%).
+            This will mark the project as completed and generate a retrospective.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button variant="secondary" onClick={() => setShowShipModal(false)}>Keep working</Button>
+            <Button onClick={handleShip} className="bg-emerald-600 hover:bg-emerald-700 text-white">Ship it</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={showTemplateSave} onClose={() => setShowTemplateSave(false)} title="Save as template">
+        <div className="space-y-4">
+          <Input label="Template name" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. Website Launch" />
+          <p className="text-xs text-notion-text-muted">Saves the project phases and task structure as a reusable template for future projects.</p>
+          <Button
+            onClick={async () => {
+              if (!templateName.trim() || !orgId) return
+              const supabase = getSupabase()
+              const { error } = await supabase.from('project_templates').insert({
+                org_id: orgId,
+                name: templateName,
+                description: project?.description?.substring(0, 200) || null,
+                phases: phases.map(p => ({ name: p.name, order: p.order })),
+                tasks: tasks.map(t => ({
+                  title: t.title,
+                  phase: phases.find(p => p.id === t.phase_id)?.name || '',
+                  priority: t.priority,
+                  estimated_hours: t.estimated_hours,
+                  instructions: t.description || '',
+                })),
+              })
+              if (error) { toast.error(error.message); return }
+              toast.success('Template saved!')
+              setShowTemplateSave(false)
+            }}
+            className="w-full"
+            disabled={!templateName.trim()}
+          >
+            Save template
+          </Button>
+        </div>
+      </Modal>
+
+      <Confetti active={confettiActive} />
     </div>
   )
 }
@@ -296,36 +662,105 @@ function NextStepBar({ tasks, onOpenAgent }: { tasks: ProjectTask[]; onOpenAgent
 
   if (done === total) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm">
-        <span className="text-green-600 font-medium">All {total} tasks done!</span>
-        <span className="text-green-500">Ready for the next project.</span>
+      <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-sm">
+        <span className="text-emerald-600 dark:text-emerald-400 font-medium">All {total} tasks done!</span>
+        <span className="text-emerald-500">Ready for the next project.</span>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-brand-50 border border-brand-200 rounded-xl text-sm">
+    <div className="flex items-center justify-between px-4 py-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl text-sm">
       <div className="flex items-center gap-3">
-        <div className="w-24 h-1.5 bg-brand-200 rounded-full overflow-hidden">
+        <div className="w-24 h-1.5 bg-brand-200 dark:bg-brand-800 rounded-full overflow-hidden">
           <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-brand-700 font-medium">{pct}%</span>
-        {inProgress > 0 && <span className="text-brand-600">{inProgress} in progress</span>}
+        <span className="text-brand-700 dark:text-brand-400 font-medium">{pct}%</span>
+        {inProgress > 0 && <span className="text-brand-600 dark:text-brand-400">{inProgress} in progress</span>}
         {nextTask && (
-          <span className="text-brand-600 ml-2">
-            Next: <span className="font-medium text-brand-800">{nextTask.title}</span>
+          <span className="text-brand-600 dark:text-brand-400 ml-2">
+            Next: <span className="font-medium text-brand-800 dark:text-brand-300">{nextTask.title}</span>
           </span>
         )}
       </div>
       <button
         onClick={onOpenAgent}
-        className="text-brand-600 hover:text-brand-800 font-medium flex items-center gap-1"
+        className="text-brand-600 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 font-medium flex items-center gap-1"
       >
         Ask AI how to do it
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       </button>
     </div>
   )
+}
+
+function CalendarView({ tasks, phases, onTaskClick }: { tasks: ProjectTask[]; phases: ProjectPhase[]; onTaskClick: (t: ProjectTask) => void }) {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDay = new Date(year, month, 1).getDay()
+  const monthName = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  const taskMap: Record<number, ProjectTask[]> = {}
+  tasks.filter(t => t.due_date).forEach(t => {
+    const d = new Date(t.due_date!)
+    if (d.getMonth() === month && d.getFullYear() === year) {
+      const day = d.getDate()
+      if (!taskMap[day]) taskMap[day] = []
+      taskMap[day].push(t)
+    }
+  })
+
+  return (
+    <div className="bg-notion-bg border border-notion-border rounded-xl overflow-hidden animate-fade-in">
+      <div className="px-4 py-3 border-b border-notion-border bg-notion-bg-secondary">
+        <h3 className="text-sm font-semibold text-notion-text">{monthName}</h3>
+      </div>
+      <div className="grid grid-cols-7">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="px-2 py-1.5 text-[11px] font-medium text-notion-text-muted text-center border-b border-notion-border">{d}</div>
+        ))}
+        {Array.from({ length: firstDay }).map((_, i) => (
+          <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-notion-border bg-notion-bg-secondary/50" />
+        ))}
+        {days.map(day => {
+          const dayTasks = taskMap[day] || []
+          const isToday = day === today.getDate()
+          return (
+            <div key={day} className={cn('min-h-[80px] p-1.5 border-b border-r border-notion-border', isToday && 'bg-brand-50 dark:bg-brand-900/10')}>
+              <span className={cn('text-xs font-medium', isToday ? 'text-brand-600' : 'text-notion-text-secondary')}>{day}</span>
+              <div className="mt-1 space-y-0.5">
+                {dayTasks.slice(0, 3).map(t => {
+                  const phase = phases.find(p => p.id === t.phase_id)
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => onTaskClick(t)}
+                      className="w-full text-left text-[10px] px-1.5 py-0.5 rounded bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 truncate hover:bg-brand-200 dark:hover:bg-brand-900/50 transition-colors"
+                    >
+                      {t.title}
+                    </button>
+                  )
+                })}
+                {dayTasks.length > 3 && (
+                  <span className="text-[10px] text-notion-text-muted">+{dayTasks.length - 3} more</span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function generateRetrospective(tasks: ProjectTask[], members: Profile[]): string {
+  const done = tasks.filter(t => t.status === 'done')
+  const overdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done')
+  const notStarted = tasks.filter(t => t.status === 'todo' || t.status === 'backlog')
+  return `## Project Retrospective\n\n**Completed:** ${done.length}/${tasks.length} tasks\n${overdue.length > 0 ? `**Overdue:** ${overdue.length} tasks\n` : ''}${notStarted.length > 0 ? `**Not started:** ${notStarted.length} tasks\n` : ''}**Team:** ${members.length} members\n## What went well\nThe project was completed with AI-powered planning and execution.\n## What could improve\nAreas identified for future sprints.`
 }

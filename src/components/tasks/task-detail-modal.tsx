@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -17,12 +17,14 @@ export function TaskDetailModal({
   open,
   onClose,
   onUpdate,
+  allTasks,
 }: {
   task: ProjectTask
   members: Profile[]
   open: boolean
   onClose: () => void
   onUpdate: () => void
+  allTasks?: ProjectTask[]
 }) {
   const [subtasks, setSubtasks] = useState<SubTask[]>([])
   const [comments, setComments] = useState<TaskComment[]>([])
@@ -31,7 +33,11 @@ export function TaskDetailModal({
   const [status, setStatus] = useState<string>(task.status)
   const [priority, setPriority] = useState<string>(task.priority)
   const [assigneeId, setAssigneeId] = useState(task.assignee_id || '')
+  const [dependsOn, setDependsOn] = useState<string[]>(task.depends_on || [])
   const [saving, setSaving] = useState(false)
+  const [showMentions, setShowMentions] = useState(false)
+  const [mentionSearch, setMentionSearch] = useState('')
+  const commentRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
 
@@ -53,8 +59,14 @@ export function TaskDetailModal({
     if (!newComment.trim()) return
     const { data: user } = await supabase.auth.getUser()
     if (!user.user) return
+
+    const processedContent = newComment.replace(/@(\w+)/g, (match, name) => {
+      const member = members.find(m => m.name.toLowerCase().includes(name.toLowerCase()))
+      return member ? `[@${member.name}](user:${member.id})` : match
+    })
+
     await supabase.from('task_comments').insert({
-      task_id: task.id, user_id: user.user.id, content: newComment,
+      task_id: task.id, user_id: user.user.id, content: processedContent,
     })
     const { data } = await supabase.from('task_comments').select('*, profile:user_id(id, email, name, avatar_url, created_at)').eq('task_id', task.id).order('created_at')
     setComments(data || [])
@@ -79,9 +91,47 @@ export function TaskDetailModal({
     setSubtasks(prev => prev.filter(s => s.id !== id))
   }
 
-  const assignee = members.find(m => m.id === task.assignee_id)
+  const handleCommentChange = (value: string) => {
+    setNewComment(value)
+    const atIndex = value.lastIndexOf('@')
+    if (atIndex >= 0) {
+      const search = value.slice(atIndex + 1)
+      if (!search.includes(' ')) {
+        setMentionSearch(search)
+        setShowMentions(true)
+        return
+      }
+    }
+    setShowMentions(false)
+  }
+
+  const insertMention = (name: string) => {
+    const atIndex = newComment.lastIndexOf('@')
+    const before = newComment.slice(0, atIndex)
+    setNewComment(before + `@${name} `)
+    setShowMentions(false)
+    commentRef.current?.focus()
+  }
+
+  const handleDependencyChange = async (taskId: string, add: boolean) => {
+    let newDeps: string[]
+    if (add) newDeps = [...dependsOn, taskId]
+    else newDeps = dependsOn.filter(id => id !== taskId)
+
+    setDependsOn(newDeps)
+    const { error } = await supabase.from('tasks').update({ depends_on: newDeps, updated_at: new Date().toISOString() }).eq('id', task.id)
+    if (error) toast.error(error.message)
+    else onUpdate()
+  }
+
+  const filteredMembers = members.filter(m =>
+    m.name.toLowerCase().includes(mentionSearch.toLowerCase())
+  )
 
   const completedSubtasks = subtasks.filter(s => s.completed).length
+  const dependentTasks = allTasks?.filter(t => dependsOn.includes(t.id)) || []
+  const blockingTasks = allTasks?.filter(t => t.depends_on?.includes(task.id)) || []
+  const availableDeps = allTasks?.filter(t => t.id !== task.id && !dependsOn.includes(t.id)) || []
 
   return (
     <Modal open={open} onClose={onClose} className="max-w-2xl">
@@ -145,10 +195,51 @@ export function TaskDetailModal({
           {task.estimated_hours && (
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-text-secondary">Estimated time</label>
-              <div className="rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-text-primary">{task.estimated_hours}h</div>
+              <div className="rounded-xl border border-border bg-white dark:bg-notion-bg-secondary px-4 py-2.5 text-sm text-text-primary">{task.estimated_hours}h</div>
             </div>
           )}
         </div>
+
+        {allTasks && allTasks.length > 0 && (
+          <div className="border-t border-border-light pt-5">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">Dependencies</h4>
+            {dependentTasks.length > 0 && (
+              <div className="mb-2">
+                <p className="text-xs text-text-muted mb-1">Depends on:</p>
+                {dependentTasks.map(dt => (
+                  <div key={dt.id} className="flex items-center gap-2 py-1">
+                    <div className={`w-2 h-2 rounded-full ${dt.status === 'done' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                    <span className="text-sm text-text-primary flex-1">{dt.title}</span>
+                    <button onClick={() => handleDependencyChange(dt.id, false)} className="text-xs text-notion-text-muted hover:text-red-500">Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {availableDeps.length > 0 && (
+              <div>
+                <p className="text-xs text-text-muted mb-1">Add dependency:</p>
+                <select
+                  onChange={e => { if (e.target.value) handleDependencyChange(e.target.value, true) }}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-1.5 text-sm"
+                  value=""
+                >
+                  <option value="">Select task...</option>
+                  {availableDeps.map(t => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {blockingTasks.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-text-muted mb-1">Blocks:</p>
+                {blockingTasks.map(bt => (
+                  <div key={bt.id} className="text-sm text-text-secondary">- {bt.title}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="border-t border-border-light pt-5">
           <div className="flex items-center justify-between mb-3">
@@ -184,7 +275,7 @@ export function TaskDetailModal({
           <h4 className="text-sm font-semibold text-text-primary mb-4">Comments ({comments.length})</h4>
           <div className="space-y-4 mb-4 max-h-48 overflow-y-auto">
             {comments.length === 0 ? (
-              <p className="text-sm text-text-muted text-center py-4">No comments yet</p>
+              <p className="text-sm text-text-muted text-center py-4">No comments yet. Use @name to mention someone.</p>
             ) : (
               comments.map(c => (
                 <div key={c.id} className="flex gap-3">
@@ -196,16 +287,44 @@ export function TaskDetailModal({
                       <span className="text-sm font-medium text-text-primary">{(c as unknown as { profile: Profile }).profile?.name || 'Unknown'}</span>
                       <span className="text-xs text-text-muted">{formatDateShort(c.created_at)}</span>
                     </div>
-                    <p className="text-sm text-text-secondary mt-0.5">{c.content}</p>
+                    <p className="text-sm text-text-secondary mt-0.5">
+                      {(c.content || '').split(/(\[@\w+\]\(user:[^)]+\))/).map((part, i) => {
+                        const mentionMatch = part.match(/\[@(\w+)\]\(user:([^)]+)\)/)
+                        if (mentionMatch) {
+                          return <span key={i} className="text-brand-600 font-medium bg-brand-50 dark:bg-brand-900/20 px-1 rounded">@{mentionMatch[1]}</span>
+                        }
+                        return <span key={i}>{part}</span>
+                      })}
+                    </p>
                   </div>
                 </div>
               ))
             )}
           </div>
-          <form onSubmit={e => { e.preventDefault(); handleAddComment() }} className="flex gap-2">
-            <Input placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} />
-            <Button type="submit" variant="secondary" size="sm" disabled={!newComment.trim()}>Send</Button>
-          </form>
+          <div className="relative">
+            <form onSubmit={e => { e.preventDefault(); handleAddComment() }} className="flex gap-2">
+              <Input
+                ref={commentRef}
+                placeholder="Write a comment... Use @name to mention"
+                value={newComment}
+                onChange={e => handleCommentChange(e.target.value)}
+              />
+              <Button type="submit" variant="secondary" size="sm" disabled={!newComment.trim()}>Send</Button>
+            </form>
+            {showMentions && filteredMembers.length > 0 && (
+              <div className="absolute bottom-full mb-1 left-0 bg-white dark:bg-notion-bg-secondary border border-notion-border rounded-lg shadow-xl p-1 z-50 max-h-32 overflow-y-auto">
+                {filteredMembers.slice(0, 5).map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => insertMention(m.name)}
+                    className="block w-full text-left px-2.5 py-1 text-sm text-notion-text hover:bg-notion-bg-hover rounded transition-colors"
+                  >
+                    @{m.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Modal>

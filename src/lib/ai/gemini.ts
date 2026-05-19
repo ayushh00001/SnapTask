@@ -218,8 +218,56 @@ function localExtractPlan(input: string): ExtractedPlan {
   }
 }
 
-export async function extractTasksFromText(input: string, onProgress?: (msg: string) => void): Promise<ExtractedPlan> {
+export async function extractTasksFromText(input: string, onProgress?: (msg: string) => void, imageBase64?: string): Promise<ExtractedPlan> {
   onProgress?.('Researching your project...')
+
+  let geminiResult: string | null = null
+
+  if (imageBase64 && genAI) {
+    onProgress?.('Analyzing photo with AI...')
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+      const imageParts = [{ inlineData: { mimeType: 'image/jpeg', data: imageBase64 } }]
+      const result = await Promise.race([
+        model.generateContent([
+          { text: `Analyze this image and extract project information. Then create a comprehensive project plan.
+
+The user also said: "${input}"
+
+Respond with ONLY this JSON:
+{
+  "projectName": "project name",
+  "description": "description",
+  "research": "what you see in the image and how it relates to the project",
+  "phases": [{ "name": "phase name", "order": 0 }],
+  "tasks": [{ "title": "task", "phase": "phase name", "priority": "low|medium|high|urgent", "estimated_hours": number, "instructions": "step-by-step instructions" }],
+  "guide": "project guide"
+}
+
+Generate 12 to 22 tasks with detailed instructions.` },
+          ...imageParts,
+        ]),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+      ])
+      geminiResult = result.response.text()
+      if (geminiResult) {
+        try {
+          const parsed = JSON.parse(cleanJson(geminiResult))
+          if (parsed.tasks && parsed.tasks.length >= 3) {
+            onProgress?.(`Generated ${parsed.tasks.length} tasks!`)
+            return {
+              projectName: parsed.projectName || 'New Project',
+              description: parsed.description || input.substring(0, 300),
+              phases: parsed.phases || [{ name: 'Phase 1', order: 0 }],
+              tasks: parsed.tasks,
+              guide: parsed.guide || '## Project Guide\n\nFollow the tasks in order.',
+              research: parsed.research || '',
+            }
+          }
+        } catch { /* fall through */ }
+      }
+    } catch { /* fall through to text-only */ }
+  }
 
   const geminiPrompt = `You are SnapTask AI — an expert project supervisor who researches and builds comprehensive project plans.
 
@@ -256,7 +304,7 @@ Respond with ONLY this JSON (no other text):
 Generate 12 to 22 tasks. Make instructions specific and actionable — tell them exact commands to run, files to create, and steps to follow.`
 
   onProgress?.('Analyzing project requirements...')
-  const geminiResult = await tryGemini(geminiPrompt, 4000)
+  geminiResult = await tryGemini(geminiPrompt, 4000)
 
   if (geminiResult) {
     try {

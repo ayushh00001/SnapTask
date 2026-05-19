@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,6 +14,16 @@ import { toast } from 'sonner'
 import { extractTasksFromText, distributeTasksEvenly } from '@/lib/ai/gemini'
 import { logActivity } from '@/components/activity/activity-feed'
 
+interface ProjectTemplate {
+  id: string
+  name: string
+  description: string | null
+  category: string
+  phases: { name: string; order: number }[]
+  tasks: { title: string; phase: string; priority: string; estimated_hours: number; instructions: string }[]
+  usage_count: number
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [taskCounts, setTaskCounts] = useState<Record<string, { total: number; done: number }>>({})
@@ -22,6 +32,16 @@ export default function ProjectsPage() {
   const [newDesc, setNewDesc] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [progressMsg, setProgressMsg] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([])
+  const [showSlackParse, setShowSlackParse] = useState(false)
+  const [slackInput, setSlackInput] = useState('')
+  const [slackLoading, setSlackLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   async function loadProjects() {
@@ -47,12 +67,70 @@ export default function ProjectsPage() {
 
   useEffect(() => { loadProjects() }, [])
 
+  useEffect(() => {
+    if (showTemplates) {
+      const supabase = createClient()
+      supabase.from('project_templates').select('*').order('usage_count', { ascending: false }).limit(20).then(({ data }) => setTemplates(data || []))
+    }
+  }, [showTemplates])
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        resolve(result.split(',')[1])
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handlePhotoSelect = async (file: File) => {
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return }
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    const b64 = await fileToBase64(file)
+    setPhotoBase64(b64)
+  }
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => ISpeechRecognition }).SpeechRecognition
+      || (window as unknown as { webkitSpeechRecognition?: new () => ISpeechRecognition }).webkitSpeechRecognition
+    if (!SpeechRecognition) { toast.error('Voice input not supported in this browser'); return }
+
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.interimResults = true
+    recognition.continuous = false
+
+    setIsRecording(true)
+    recognition.start()
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map(r => r[0].transcript)
+        .join('')
+      setNewDesc(prev => prev + ' ' + transcript)
+    }
+
+    recognition.onerror = () => {
+      setIsRecording(false)
+      toast.error('Voice input failed. Try typing instead.')
+    }
+
+    recognition.onend = () => {
+      setIsRecording(false)
+    }
+  }
+
   const handleCreate = async () => {
-    if (!newDesc.trim()) { toast.error('Describe what you want to build'); return }
+    if (!newDesc.trim() && !photoFile) { toast.error('Describe what you want to build'); return }
     setAiLoading(true)
     try {
       setProgressMsg('AI is analyzing your project...')
-      const plan = await extractTasksFromText(newDesc, (msg) => setProgressMsg(msg))
+      const plan = await extractTasksFromText(newDesc || (photoFile ? 'Build from uploaded image' : ''), (msg) => setProgressMsg(msg), photoBase64 || undefined)
 
       if (!plan.tasks || plan.tasks.length === 0) {
         console.error('Plan has no tasks:', plan)
@@ -68,6 +146,21 @@ export default function ProjectsPage() {
       const { data: orgs } = await supabase.from('org_members').select('org_id').eq('user_id', userData.user.id).limit(1)
       if (!orgs?.length) { setAiLoading(false); return }
       const orgId = orgs[0].org_id
+
+      let photoUrl: string | null = null
+      if (photoFile) {
+        const ext = photoFile.name.split('.').pop() || 'jpg'
+        const path = `${orgId}/${Date.now()}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('project-photos')
+          .upload(path, photoFile)
+        if (!uploadErr) {
+          const { data: urlData } = await supabase.storage
+            .from('project-photos')
+            .getPublicUrl(path)
+          photoUrl = urlData?.publicUrl || null
+        }
+      }
 
       const { data: memberProfiles } = await supabase
         .from('org_members')
@@ -94,6 +187,7 @@ export default function ProjectsPage() {
         description: fullGuide,
         status: 'active',
         created_by: userData.user.id,
+        photo_url: photoUrl,
       }).select().single()
       if (error) { toast.error(error.message); setAiLoading(false); return }
 
@@ -128,7 +222,7 @@ export default function ProjectsPage() {
 
       await logActivity(orgId, userData.user.id, 'create_project', 'project', project.id, { name: project.name, ai: true })
       toast.success(`Project created with ${createdCount} tasks!`)
-      setShowCreate(false); setNewDesc('')
+      setShowCreate(false); setNewDesc(''); setPhotoFile(null); setPhotoPreview(null); setPhotoBase64(null)
       router.push(`/projects/${project.id}?guide=true`)
     } catch (e) {
       console.error('Project creation error:', e)
@@ -169,6 +263,11 @@ export default function ProjectsPage() {
             <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
               <Card className="h-full border-border-light hover:border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
                 <CardContent className="p-4">
+                  {project.photo_url && (
+                    <div className="mb-2.5 -mx-4 -mt-4 rounded-t-lg overflow-hidden h-32">
+                      <img src={project.photo_url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <h3 className="font-medium text-sm text-notion-text truncate group-hover:text-notion-accent transition-colors">{project.name}</h3>
                     <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
@@ -198,18 +297,84 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => { setShowCreate(false); setAiLoading(false); setNewDesc('') }} title="Create project" subtitle="Describe what you want to build — AI does the rest">
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); setAiLoading(false); setNewDesc(''); setPhotoFile(null); setPhotoPreview(null); setPhotoBase64(null) }} title="Create project" subtitle="Describe what you want to build — AI does the rest">
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-text-secondary">Describe your project</label>
             <textarea
-              className="block w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[140px] transition-all duration-150"
+              className="block w-full rounded-xl border border-border bg-white dark:bg-notion-bg-secondary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[120px] transition-all duration-150"
               value={newDesc}
               onChange={e => setNewDesc(e.target.value)}
-              placeholder="Example: Build a landing page for my SaaS startup with pricing, features, and a contact form. Use Next.js and Tailwind CSS."
+              placeholder="Example: Build a landing page for my SaaS startup with pricing, features, and a contact form."
               autoFocus
             />
-            <p className="text-xs text-notion-text-muted">AI will research your project, create tasks with step-by-step instructions, and guide you through building it.</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) handlePhotoSelect(e.dataTransfer.files[0]) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-notion-text-secondary hover:bg-notion-bg-hover hover:border-notion-border-hover transition-all cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Add photo
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { if (e.target.files?.[0]) handlePhotoSelect(e.target.files[0]) }}
+            />
+            <button
+              type="button"
+              onClick={handleVoiceInput}
+              disabled={isRecording}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-all ${
+                isRecording
+                  ? 'border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 animate-pulse'
+                  : 'border-border text-notion-text-secondary hover:bg-notion-bg-hover hover:border-notion-border-hover'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+              {isRecording ? 'Recording...' : 'Voice input'}
+            </button>
+          </div>
+
+          {photoPreview && (
+            <div className="relative rounded-xl overflow-hidden border border-border">
+              <img src={photoPreview} alt="Upload preview" className="max-h-48 w-full object-contain bg-notion-bg-secondary" />
+              <button
+                onClick={() => { setPhotoFile(null); setPhotoPreview(null); setPhotoBase64(null) }}
+                className="absolute top-2 right-2 p-1 rounded bg-black/50 text-white hover:bg-black/70 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <p className="text-xs text-notion-text-muted">AI will research your project, analyze photos, and create tasks with step-by-step instructions.</p>
+
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => { setShowTemplates(true); setShowCreate(false) }}
+              className="text-xs text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover px-2 py-1 rounded transition-colors"
+            >
+              From template
+            </button>
+            <button
+              onClick={() => { setShowSlackParse(true); setShowCreate(false) }}
+              className="text-xs text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover px-2 py-1 rounded transition-colors"
+            >
+              Import email/Slack
+            </button>
           </div>
           {aiLoading && progressMsg && (
             <div className="flex items-center gap-2 text-sm text-brand-600">
@@ -217,11 +382,150 @@ export default function ProjectsPage() {
               {progressMsg}
             </div>
           )}
-          <Button onClick={handleCreate} loading={aiLoading} className="w-full" disabled={!newDesc.trim()}>
+          <Button onClick={handleCreate} loading={aiLoading} className="w-full" disabled={!newDesc.trim() && !photoFile}>
             {aiLoading ? (progressMsg || 'Working...') : 'Create project with AI'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={showTemplates} onClose={() => setShowTemplates(false)} title="Project Templates" subtitle="Start from a pre-built template">
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {templates.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-notion-text-muted mb-2">No templates yet</p>
+              <p className="text-xs text-notion-text-muted">Save a project as a template to get started</p>
+            </div>
+          ) : templates.map(t => (
+            <button
+              key={t.id}
+              onClick={async () => {
+                setShowTemplates(false)
+                const supabase = createClient()
+                const { data: userData } = await supabase.auth.getUser()
+                if (!userData.user) return
+                const { data: orgs } = await supabase.from('org_members').select('org_id').eq('user_id', userData.user.id).limit(1)
+                if (!orgs?.length) return
+                const orgId = orgs[0].org_id
+                const { data: project, error: projErr } = await supabase.from('projects').insert({
+                  org_id: orgId, name: t.name, description: t.description || '', status: 'active', created_by: userData.user.id,
+                }).select().single()
+                if (projErr || !project) { toast.error('Failed to create project from template'); return }
+                for (const phase of t.phases) {
+                  const { data: phaseData } = await supabase.from('project_phases').insert({
+                    project_id: project.id, name: phase.name, order: phase.order,
+                  }).select().single()
+                  if (phaseData) {
+                    const ptasks = t.tasks.filter((tk: { phase: string }) => tk.phase === phase.name)
+                    for (const task of ptasks) {
+                      await supabase.from('tasks').insert({
+                        project_id: project.id, phase_id: phaseData.id, title: task.title,
+                        priority: task.priority || 'medium', status: 'todo', created_by: userData.user.id,
+                        estimated_hours: task.estimated_hours, description: task.instructions || null,
+                      })
+                    }
+                  }
+                }
+                await supabase.from('project_templates').update({ usage_count: t.usage_count + 1 }).eq('id', t.id)
+                toast.success(`Project created from "${t.name}" template!`)
+                router.push(`/projects/${project.id}`)
+              }}
+              className="w-full text-left p-3 rounded-xl border border-border hover:border-brand-300 hover:bg-brand-50/50 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-text-primary">{t.name}</span>
+                  <span className="ml-2 text-xs text-notion-text-muted capitalize">({t.category})</span>
+                </div>
+                <span className="text-xs text-notion-text-muted">{t.usage_count} uses</span>
+              </div>
+              {t.description && <p className="text-xs text-notion-text-secondary mt-1 line-clamp-1">{t.description}</p>}
+              <p className="text-xs text-notion-text-muted mt-1">{t.phases.length} phases &middot; {t.tasks.length} tasks</p>
+            </button>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal open={showSlackParse} onClose={() => setShowSlackParse(false)} title="Import from Email or Slack" subtitle="Paste email or Slack message content — AI extracts tasks">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-text-secondary">Paste email or Slack message</label>
+            <textarea
+              className="block w-full rounded-xl border border-border bg-white dark:bg-notion-bg-secondary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[180px] transition-all duration-150"
+              value={slackInput}
+              onChange={e => setSlackInput(e.target.value)}
+              placeholder="Paste an email thread, Slack message, or meeting notes here...&#10;&#10;Example:&#10;'Hey team, we need to build a landing page this sprint.&#10;Tasks:&#10;- Design homepage mockup&#10;- Set up contact form&#10;- Write copy for about page&#10;- Deploy to Vercel'"
+              autoFocus
+            />
+          </div>
+          {slackLoading && (
+            <div className="flex items-center gap-2 text-sm text-brand-600">
+              <span className="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+              AI is extracting tasks...
+            </div>
+          )}
+          <Button
+            onClick={async () => {
+              if (!slackInput.trim()) return
+              setSlackLoading(true)
+              try {
+                const plan = await extractTasksFromText(
+                  `Extract tasks from this message:\n\n${slackInput}`,
+                  (msg) => setProgressMsg(msg)
+                )
+                if (plan.tasks.length > 0) {
+                  setNewDesc(slackInput)
+                  setSlackInput('')
+                  setShowSlackParse(false)
+                  setShowCreate(true)
+                  toast.success(`Extracted ${plan.tasks.length} tasks from message!`)
+                } else {
+                  toast.error('Could not extract tasks. Try a more detailed message.')
+                }
+              } catch (e) {
+                toast.error('Failed to parse message')
+              }
+              setSlackLoading(false)
+            }}
+            loading={slackLoading}
+            className="w-full"
+            disabled={!slackInput.trim()}
+          >
+            Extract tasks
           </Button>
         </div>
       </Modal>
     </div>
   )
+}
+
+interface ISpeechRecognition extends EventTarget {
+  lang: string
+  interimResults: boolean
+  continuous: boolean
+  start: () => void
+  stop: () => void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+}
+
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList
+}
+
+interface SpeechRecognitionResultList {
+  [index: number]: SpeechRecognitionResult
+  length: number
+  [Symbol.iterator]: () => Iterator<SpeechRecognitionResult>
+}
+
+interface SpeechRecognitionResult {
+  [index: number]: SpeechRecognitionAlternative
+  isFinal: boolean
+  length: number
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string
+  confidence: number
 }

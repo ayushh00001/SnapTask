@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from 'sonner'
+import { ThemeProvider } from '@/components/theme/theme-provider'
 
 export const metadata: Metadata = {
   title: 'SnapTask — AI Project Manager',
@@ -9,10 +10,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        {children}
-        <Toaster position="bottom-right" />
+        <ThemeProvider>
+          {children}
+          <Toaster position="bottom-right" theme="system" />
+        </ThemeProvider>
       </body>
     </html>
   )

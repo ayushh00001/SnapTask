@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import type { Organization, OrgMember, Profile } from '@/lib/types'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { PushManager } from '@/components/notifications/push-manager'
 
 export default function SettingsPage() {
   const [org, setOrg] = useState<Organization | null>(null)
@@ -119,6 +120,40 @@ export default function SettingsPage() {
           <div className="flex gap-2 pt-2">
             <Input id="invite" placeholder="Email to invite" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
             <Button onClick={handleInvite} variant="secondary">Invite</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><h2 className="font-semibold text-text-primary">Notifications</h2></CardHeader>
+        <CardContent className="space-y-4">
+          <PushManager />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><h2 className="font-semibold text-text-primary">Security</h2></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-surface-muted rounded-xl">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Two-factor authentication (2FA)</p>
+              <p className="text-xs text-text-muted">Add an extra layer of security to your account</p>
+            </div>
+            <Badge color="amber">Coming soon</Badge>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-surface-muted rounded-xl">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Email verification</p>
+              <p className="text-xs text-text-muted">Verify your email address for enhanced security</p>
+            </div>
+            <Badge color={profile?.email ? 'green' : 'gray'}>{profile?.email ? 'Verified' : 'Unverified'}</Badge>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-surface-muted rounded-xl">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Session management</p>
+              <p className="text-xs text-text-muted">View and manage active sessions</p>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => toast.info('Session management coming soon')}>Manage</Button>
           </div>
         </CardContent>
       </Card>

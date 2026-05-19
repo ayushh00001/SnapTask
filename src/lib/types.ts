@@ -65,6 +65,7 @@ export interface ProjectTask {
   due_date: string | null
   order: number
   estimated_hours: number | null
+  depends_on: string[] | null
   created_at: string
   updated_at: string
   assignee?: Profile
