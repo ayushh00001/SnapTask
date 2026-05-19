@@ -2,18 +2,18 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
 const variants = {
-  primary: 'bg-notion-text text-white hover:bg-[#2a2722] active:bg-[#1e1c18]',
-  secondary: 'bg-notion-bg text-notion-text border border-notion-border hover:bg-notion-bg-hover active:bg-notion-bg-selected',
-  ghost: 'text-notion-text-secondary hover:bg-notion-bg-hover hover:text-notion-text active:bg-notion-bg-selected',
-  danger: 'bg-notion-danger text-white hover:bg-notion-danger-hover active:bg-[#c02a29]',
-  accent: 'text-notion-accent hover:bg-[#edf6ff] active:bg-[#d9e7f7]',
+  primary: 'bg-accent text-white hover:bg-accent-hover active:bg-accent-hover shadow-sm hover:shadow-md',
+  secondary: 'bg-white dark:bg-surface text-text border border-border hover:bg-bg-hover active:bg-bg-selected shadow-sm',
+  ghost: 'text-text-secondary hover:bg-bg-hover hover:text-text active:bg-bg-selected',
+  danger: 'bg-danger text-white hover:bg-danger-hover active:bg-danger-hover shadow-sm',
+  accent: 'text-accent bg-accent-soft hover:bg-brand-100 active:bg-brand-200',
 } as const
 
 const sizes = {
-  sm: 'px-2.5 py-1 text-xs rounded',
-  md: 'px-3 py-1.5 text-sm rounded',
-  lg: 'px-4 py-2 text-sm rounded',
-  icon: 'p-1.5 rounded',
+  sm: 'px-3 py-1.5 text-xs rounded-xl',
+  md: 'px-4 py-2 text-sm rounded-xl',
+  lg: 'px-5 py-2.5 text-sm rounded-xl',
+  icon: 'p-2 rounded-xl',
 } as const
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -28,8 +28,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 font-medium transition-colors duration-100',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-notion-accent focus-visible:ring-offset-1',
+        'inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30',
         'disabled:opacity-40 disabled:pointer-events-none',
         'select-none',
         variants[variant],

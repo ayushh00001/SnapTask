@@ -5,10 +5,10 @@ import { OnboardingModal } from '@/components/onboarding/onboarding-modal'
 
 export default function ProjectsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-notion-bg-secondary flex">
+    <div className="min-h-screen bg-bg-secondary flex">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="sticky top-0 z-30 bg-notion-bg/90 backdrop-blur-md border-b border-notion-border hidden lg:flex items-center justify-between px-4 sm:px-6 h-12">
+        <div className="sticky top-0 z-30 bg-card/80 backdrop-blur-lg border-b border-border hidden lg:flex items-center justify-between px-4 sm:px-6 h-12">
           <GlobalSearch />
           <div className="flex items-center gap-2" />
         </div>

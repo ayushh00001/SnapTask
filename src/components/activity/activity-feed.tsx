@@ -16,12 +16,12 @@ const actionIcons: Record<string, string> = {
 }
 
 const actionColors: Record<string, string> = {
-  create_project: 'bg-notion-blue',
-  update_project: 'bg-notion-orange',
-  create_task: 'bg-notion-accent',
-  update_task: 'bg-notion-purple',
-  complete_task: 'bg-notion-green',
-  invite_member: 'bg-[#6940a5]',
+  create_project: 'bg-accent',
+  update_project: 'bg-orange',
+  create_task: 'bg-blue',
+  update_task: 'bg-purple',
+  complete_task: 'bg-green',
+  invite_member: 'bg-purple',
 }
 
 export function ActivityFeed({ orgId, limit = 10 }: { orgId?: string; limit?: number }) {
@@ -50,28 +50,28 @@ export function ActivityFeed({ orgId, limit = 10 }: { orgId?: string; limit?: nu
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 bg-notion-bg-secondary flex items-center justify-center">
-            <svg className="w-3 h-3 text-notion-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-accent to-purple flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 className="text-sm font-semibold text-notion-text">Activity</h2>
+          <h2 className="text-sm font-semibold text-text">Activity</h2>
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
         {activities.map((a, i) => (
           <div key={a.id} className="flex items-start gap-3 py-2.5 animate-slide-up" style={{ animationDelay: `${i * 40}ms` }}>
-            <div className={`w-6 h-6 ${actionColors[a.action] || 'bg-notion-gray'} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className={`w-7 h-7 rounded-xl ${actionColors[a.action] || 'bg-gray'} flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>
+              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={actionIcons[a.action] || 'M13 10V3L4 14h7v7l9-11h-7z'} />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-notion-text">
-                <span className="font-medium">{a.profile?.name || 'Someone'}</span>{' '}
+              <p className="text-sm text-text">
+                <span className="font-semibold">{a.profile?.name || 'Someone'}</span>{' '}
                 {a.action.replace(/_/g, ' ')}
               </p>
-              <p className="text-xs text-notion-text-muted mt-0.5">{formatDateShort(a.created_at)}</p>
+              <p className="text-xs text-text-muted mt-0.5">{formatDateShort(a.created_at)}</p>
             </div>
           </div>
         ))}

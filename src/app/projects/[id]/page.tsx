@@ -289,7 +289,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="animate-spin w-4 h-4 border-[2px] border-notion-text border-t-transparent rounded-full" />
+      <div className="animate-spin w-5 h-5 border-2 border-accent border-t-transparent rounded-full" />
     </div>
   )
   if (!project) return null
@@ -304,25 +304,25 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 animate-fade-in">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-lg sm:text-xl font-bold text-notion-text truncate">{project.name}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text truncate">{project.name}</h1>
             <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
           </div>
           {project.photo_url && (
-            <div className="mt-2 rounded-xl overflow-hidden border border-notion-border max-h-48">
+            <div className="mt-3 rounded-2xl overflow-hidden border border-border max-h-48">
               <img src={project.photo_url} alt="" className="w-full h-full object-cover" />
             </div>
           )}
           {project.description && (
             project.description.startsWith('## Project Guide') ? (
-              <details className="mt-2 group">
-                <summary className="text-sm text-brand-500 cursor-pointer hover:text-brand-600 transition-colors font-medium flex items-center gap-1.5">
+              <details className="mt-3 group">
+                <summary className="text-sm text-accent cursor-pointer hover:text-accent-hover transition-colors font-medium flex items-center gap-1.5">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   View AI Supervisor Guide
                 </summary>
-                <div className="mt-2 p-3 bg-notion-bg-hover border border-notion-border text-sm text-notion-text-secondary leading-relaxed whitespace-pre-line">
+                <div className="mt-2 p-4 bg-bg-secondary border border-border rounded-xl text-sm text-text-secondary leading-relaxed whitespace-pre-line">
                   {project.description.split('\n').map((line, i) => {
-                    if (line.startsWith('## ')) return <h3 key={i} className="font-semibold text-notion-text mb-1 text-base">{line.replace('## ', '')}</h3>
-                    if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-semibold text-notion-text mb-1">{line.replace(/\*\*/g, '')}</p>
+                    if (line.startsWith('## ')) return <h3 key={i} className="font-semibold text-text mb-1 text-base">{line.replace('## ', '')}</h3>
+                    if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-semibold text-text mb-1">{line.replace(/\*\*/g, '')}</p>
                     if (line.match(/^\d+\./)) return <p key={i} className="ml-4 mb-0.5">{line}</p>
                     if (line.startsWith('•')) return <p key={i} className="ml-2 mb-0.5">{line}</p>
                     return <p key={i} className="mb-0.5">{line}</p>
@@ -330,7 +330,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </details>
             ) : (
-              <p className="mt-0.5 text-sm text-notion-text-secondary line-clamp-2">{project.description}</p>
+              <p className="mt-1 text-sm text-text-secondary line-clamp-2">{project.description}</p>
             )
           )}
         </div>
@@ -361,7 +361,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             </svg>
             Template
           </Button>
-          <Button variant="secondary" onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }} size="sm">+ Add</Button>
+          <Button variant="secondary" onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }} size="sm">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add
+          </Button>
           <Button variant="danger" onClick={handleDeleteProject} size="sm">Delete</Button>
         </div>
       </div>
@@ -369,33 +374,33 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <div className="flex items-center justify-between">
         <div className="flex gap-2 flex-wrap">
           {phases.map(phase => (
-            <Badge key={phase.id} color="blue">{phase.name}</Badge>
+            <Badge key={phase.id} color="purple">{phase.name}</Badge>
           ))}
         </div>
-        <div className="flex items-center gap-1 bg-notion-bg-hover rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-bg-secondary rounded-xl p-0.5">
           {(['kanban', 'list', 'calendar'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={cn(
-                'px-2.5 py-1 rounded text-xs font-medium transition-all capitalize',
+                'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all capitalize flex items-center gap-1',
                 viewMode === mode
-                  ? 'bg-notion-bg shadow-sm text-notion-text'
-                  : 'text-notion-text-muted hover:text-notion-text'
+                  ? 'bg-card shadow-sm text-text'
+                  : 'text-text-muted hover:text-text'
               )}
             >
               {mode === 'kanban' && (
-                <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                 </svg>
               )}
               {mode === 'list' && (
-                <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
               )}
               {mode === 'calendar' && (
-                <svg className="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               )}
@@ -412,7 +417,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <div className="flex items-center gap-2">
         <button
           onClick={() => setShowMilestoneForm(!showMilestoneForm)}
-          className="text-xs text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover px-2 py-1 rounded transition-colors"
+          className="text-xs text-text-muted hover:text-text hover:bg-bg-hover px-2.5 py-1.5 rounded-lg transition-colors font-medium"
         >
           + Milestone
         </button>
@@ -425,17 +430,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               key={m.id}
               onClick={() => handleToggleMilestone(m)}
               className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs whitespace-nowrap transition-all',
+                'flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs whitespace-nowrap transition-all font-medium',
                 m.status === 'completed'
-                  ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                  ? 'border-green/30 bg-green-soft text-green'
                   : m.status === 'in_progress'
-                  ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                  : 'border-border text-notion-text-secondary'
+                  ? 'border-orange/30 bg-orange-soft text-orange'
+                  : 'border-border text-text-secondary'
               )}
             >
               <div className={cn(
-                'w-3 h-3 rounded-full border-2',
-                m.status === 'completed' ? 'bg-emerald-500 border-emerald-500' : 'border-current'
+                'w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                m.status === 'completed' ? 'bg-green border-green' : 'border-current'
               )}>
                 {m.status === 'completed' && (
                   <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -444,7 +449,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 )}
               </div>
               {m.name}
-              {m.due_date && <span className="text-notion-text-muted">{formatDateShort(m.due_date)}</span>}
+              {m.due_date && <span className="text-text-muted">{formatDateShort(m.due_date)}</span>}
             </button>
           ))}
         </div>
@@ -459,13 +464,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {statusColumns.map((col, ci) => {
             const colTasks = tasks.filter(t => t.status === col.key)
             return (
               <div
                 key={col.key}
-                className="bg-notion-bg-secondary p-3 min-h-[200px] animate-slide-up"
+                className="bg-bg-secondary rounded-2xl p-3 min-h-[200px] animate-slide-up"
                 style={{ animationDelay: `${ci * 80}ms` }}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => {
@@ -473,11 +478,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   if (taskId) handleDrop(taskId, col.key)
                 }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-xs text-notion-text-secondary uppercase tracking-wide">{col.label}</h3>
-                  <span className="text-xs text-notion-text-muted">{colTasks.length}</span>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <h3 className="font-semibold text-xs text-text-secondary uppercase tracking-wider">{col.label}</h3>
+                  <span className="text-xs text-text-muted bg-bg-hover px-2 py-0.5 rounded-full font-medium">{colTasks.length}</span>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {colTasks.map((task, ti) => (
                     <div key={task.id} className="animate-slide-up" style={{ animationDelay: `${ti * 40}ms` }}>
                       <TaskCard
@@ -494,9 +499,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   ))}
                   <button
                     onClick={() => { setSelectedPhase(null); setShowTaskForm(true) }}
-                    className="w-full py-1.5 text-xs text-notion-text-muted hover:text-notion-text-secondary hover:bg-notion-bg-hover transition-colors"
+                    className="w-full py-2 text-xs text-text-muted hover:text-text-secondary hover:bg-bg-hover rounded-xl transition-colors"
                   >
-                    + Add
+                    + Add task
                   </button>
                 </div>
               </div>
@@ -506,8 +511,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {viewMode === 'list' && (
-        <div className="bg-notion-bg border border-notion-border rounded-xl overflow-hidden animate-fade-in">
-          <div className="grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-notion-border bg-notion-bg-secondary text-xs font-medium text-notion-text-muted uppercase tracking-wide">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden animate-fade-in shadow-sm">
+          <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-border bg-bg-secondary text-xs font-semibold text-text-muted uppercase tracking-wider">
             <div className="col-span-4">Task</div>
             <div className="col-span-2">Phase</div>
             <div className="col-span-2">Assignee</div>
@@ -525,18 +530,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <button
                 key={task.id}
                 onClick={() => setSelectedTask(task)}
-                className="grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-notion-border last:border-0 hover:bg-notion-bg-hover transition-colors text-left w-full animate-slide-up"
+                className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-border last:border-0 hover:bg-bg-hover transition-colors text-left w-full animate-slide-up"
                 style={{ animationDelay: `${i * 20}ms` }}
               >
-                <div className="col-span-4 text-sm text-notion-text truncate">{task.title}</div>
-                <div className="col-span-2 text-xs text-notion-text-secondary truncate">{phase?.name || '-'}</div>
-                <div className="col-span-2 text-xs text-notion-text-secondary truncate">{assignee?.name || '-'}</div>
+                <div className="col-span-4 text-sm text-text truncate font-medium">{task.title}</div>
+                <div className="col-span-2 text-xs text-text-secondary truncate">{phase?.name || '-'}</div>
+                <div className="col-span-2 text-xs text-text-secondary truncate">{assignee?.name || '-'}</div>
                 <div className="col-span-1">
                   <Badge color={task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : task.priority === 'medium' ? 'blue' : 'gray'} className="text-[10px] px-1.5">{task.priority}</Badge>
                 </div>
-                <div className="col-span-1 text-xs capitalize text-notion-text-secondary">{task.status.replace('_', ' ')}</div>
-                <div className="col-span-1 text-xs text-notion-text-secondary">{task.due_date ? formatDateShort(task.due_date) : '-'}</div>
-                <div className="col-span-1 text-xs text-notion-text-secondary">{totalMin > 0 ? `${Math.round(totalMin / 60 * 10) / 10}h` : '-'}</div>
+                <div className="col-span-1 text-xs capitalize text-text-secondary">{task.status.replace('_', ' ')}</div>
+                <div className="col-span-1 text-xs text-text-secondary">{task.due_date ? formatDateShort(task.due_date) : '-'}</div>
+                <div className="col-span-1 text-xs text-text-secondary font-medium">{totalMin > 0 ? `${Math.round(totalMin / 60 * 10) / 10}h` : '-'}</div>
               </button>
             )
           })}
@@ -588,7 +593,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         />
       </Modal>
 
-      <Modal open={showAiAgent} onClose={() => setShowAiAgent(false)} title="AI Agent Chat" subtitle="Ask AI to assign tasks, review progress, and give instructions" className="max-w-xl">
+      <Modal open={showAiAgent} onClose={() => setShowAiAgent(false)} title="AI Agent" subtitle="Ask AI to assign tasks, review progress, and give instructions" className="max-w-xl">
         <AiAgentChat project={project} tasks={tasks} members={members} onAssign={() => refreshTasks()} />
       </Modal>
 
@@ -596,21 +601,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <AiInsights project={project} tasks={tasks} />
       </Modal>
 
-      <Modal open={showShipModal} onClose={() => setShowShipModal(false)} title="Ready to Ship?" className="max-w-md">
+      <Modal open={showShipModal} onClose={() => setShowShipModal(false)} title="Ship project?" className="max-w-md">
         <div className="space-y-4 text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-16 h-16 rounded-2xl bg-green-soft flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-notion-text">Ship this project?</h3>
-          <p className="text-sm text-notion-text-secondary">
+          <h3 className="text-lg font-semibold text-text">Ready to ship?</h3>
+          <p className="text-sm text-text-secondary">
             {doneTasks} of {totalTasks} tasks completed ({pct}%).
-            This will mark the project as completed and generate a retrospective.
+            This will mark the project as completed and save a retrospective.
           </p>
           <div className="flex gap-2 justify-center">
             <Button variant="secondary" onClick={() => setShowShipModal(false)}>Keep working</Button>
-            <Button onClick={handleShip} className="bg-emerald-600 hover:bg-emerald-700 text-white">Ship it</Button>
+            <Button onClick={handleShip} className="bg-green hover:bg-green/90 text-white">Ship it</Button>
           </div>
         </div>
       </Modal>
@@ -618,7 +623,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <Modal open={showTemplateSave} onClose={() => setShowTemplateSave(false)} title="Save as template">
         <div className="space-y-4">
           <Input label="Template name" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. Website Launch" />
-          <p className="text-xs text-notion-text-muted">Saves the project phases and task structure as a reusable template for future projects.</p>
+          <p className="text-xs text-text-muted">Saves project structure as a reusable template.</p>
           <Button
             onClick={async () => {
               if (!templateName.trim() || !orgId) return
@@ -662,32 +667,39 @@ function NextStepBar({ tasks, onOpenAgent }: { tasks: ProjectTask[]; onOpenAgent
 
   if (done === total) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-sm">
-        <span className="text-emerald-600 dark:text-emerald-400 font-medium">All {total} tasks done!</span>
-        <span className="text-emerald-500">Ready for the next project.</span>
+      <div className="flex items-center gap-3 px-4 py-3 bg-green-soft border border-green/20 rounded-2xl text-sm">
+        <div className="w-8 h-8 rounded-xl bg-green flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <div>
+          <span className="text-green font-semibold">All {total} tasks done!</span>
+          <span className="text-green/70 ml-2">Ready for the next project.</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl text-sm">
+    <div className="flex items-center justify-between px-4 py-3 bg-gradient-accent-subtle border border-accent/10 rounded-2xl text-sm">
       <div className="flex items-center gap-3">
-        <div className="w-24 h-1.5 bg-brand-200 dark:bg-brand-800 rounded-full overflow-hidden">
-          <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="w-28 h-2 bg-accent/15 rounded-full overflow-hidden">
+          <div className="h-full rounded-full bg-gradient-to-r from-accent to-purple transition-all duration-700" style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-brand-700 dark:text-brand-400 font-medium">{pct}%</span>
-        {inProgress > 0 && <span className="text-brand-600 dark:text-brand-400">{inProgress} in progress</span>}
+        <span className="text-accent font-bold">{pct}%</span>
+        {inProgress > 0 && <span className="text-accent">{inProgress} in progress</span>}
         {nextTask && (
-          <span className="text-brand-600 dark:text-brand-400 ml-2">
-            Next: <span className="font-medium text-brand-800 dark:text-brand-300">{nextTask.title}</span>
+          <span className="text-text-secondary ml-2 hidden sm:inline">
+            Next: <span className="font-semibold text-text">{nextTask.title}</span>
           </span>
         )}
       </div>
       <button
         onClick={onOpenAgent}
-        className="text-brand-600 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 font-medium flex items-center gap-1"
+        className="text-accent hover:text-accent-hover font-semibold flex items-center gap-1.5 transition-colors"
       >
-        Ask AI how to do it
+        Ask AI
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
@@ -716,23 +728,26 @@ function CalendarView({ tasks, phases, onTaskClick }: { tasks: ProjectTask[]; ph
   })
 
   return (
-    <div className="bg-notion-bg border border-notion-border rounded-xl overflow-hidden animate-fade-in">
-      <div className="px-4 py-3 border-b border-notion-border bg-notion-bg-secondary">
-        <h3 className="text-sm font-semibold text-notion-text">{monthName}</h3>
+    <div className="bg-card border border-border rounded-2xl overflow-hidden animate-fade-in shadow-sm">
+      <div className="px-5 py-3 border-b border-border bg-bg-secondary">
+        <h3 className="text-sm font-semibold text-text">{monthName}</h3>
       </div>
       <div className="grid grid-cols-7">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="px-2 py-1.5 text-[11px] font-medium text-notion-text-muted text-center border-b border-notion-border">{d}</div>
+          <div key={d} className="px-2 py-1.5 text-[11px] font-semibold text-text-muted text-center border-b border-border bg-bg-secondary/50">{d}</div>
         ))}
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-notion-border bg-notion-bg-secondary/50" />
+          <div key={`empty-${i}`} className="min-h-[90px] border-b border-r border-border bg-bg-secondary/30" />
         ))}
         {days.map(day => {
           const dayTasks = taskMap[day] || []
           const isToday = day === today.getDate()
           return (
-            <div key={day} className={cn('min-h-[80px] p-1.5 border-b border-r border-notion-border', isToday && 'bg-brand-50 dark:bg-brand-900/10')}>
-              <span className={cn('text-xs font-medium', isToday ? 'text-brand-600' : 'text-notion-text-secondary')}>{day}</span>
+            <div key={day} className={cn('min-h-[90px] p-2 border-b border-r border-border', isToday && 'bg-accent-soft')}>
+              <div className={cn(
+                'text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1',
+                isToday ? 'bg-accent text-white' : 'text-text-secondary'
+              )}>{day}</div>
               <div className="mt-1 space-y-0.5">
                 {dayTasks.slice(0, 3).map(t => {
                   const phase = phases.find(p => p.id === t.phase_id)
@@ -740,14 +755,14 @@ function CalendarView({ tasks, phases, onTaskClick }: { tasks: ProjectTask[]; ph
                     <button
                       key={t.id}
                       onClick={() => onTaskClick(t)}
-                      className="w-full text-left text-[10px] px-1.5 py-0.5 rounded bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 truncate hover:bg-brand-200 dark:hover:bg-brand-900/50 transition-colors"
+                      className="w-full text-left text-[10px] px-2 py-1 rounded-lg bg-accent-soft text-accent font-medium truncate hover:bg-accent/20 transition-colors"
                     >
                       {t.title}
                     </button>
                   )
                 })}
                 {dayTasks.length > 3 && (
-                  <span className="text-[10px] text-notion-text-muted">+{dayTasks.length - 3} more</span>
+                  <span className="text-[10px] text-text-muted font-medium px-1">+{dayTasks.length - 3} more</span>
                 )}
               </div>
             </div>

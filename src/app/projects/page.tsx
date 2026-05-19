@@ -234,7 +234,7 @@ export default function ProjectsPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -242,10 +242,15 @@ export default function ProjectsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-notion-text">Projects</h1>
-          <p className="text-sm text-notion-text-secondary mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-text">Projects</h1>
+          <p className="text-sm text-text-secondary mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>New project</Button>
+        <Button onClick={() => setShowCreate(true)}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          New project
+        </Button>
       </div>
 
       {projects.length === 0 ? (
@@ -261,34 +266,36 @@ export default function ProjectsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project, i) => (
             <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
-              <Card className="h-full border-border-light hover:border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-                <CardContent className="p-4">
+              <Card className="h-full hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-0">
                   {project.photo_url && (
-                    <div className="mb-2.5 -mx-4 -mt-4 rounded-t-lg overflow-hidden h-32">
+                    <div className="rounded-t-2xl overflow-hidden h-32">
                       <img src={project.photo_url} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <h3 className="font-medium text-sm text-notion-text truncate group-hover:text-notion-accent transition-colors">{project.name}</h3>
-                    <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
-                  </div>
-                  {taskCounts[project.id] && taskCounts[project.id].total > 0 && (
-                    <div className="mt-2.5">
-                      <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="text-notion-text-muted">{taskCounts[project.id].done}/{taskCounts[project.id].total} done</span>
-                        <span className="font-medium text-notion-text-secondary">{Math.round(taskCounts[project.id].done / taskCounts[project.id].total * 100)}%</span>
-                      </div>
-                      <div className="w-full h-1 bg-notion-bg-secondary">
-                        <div
-                          className="h-full bg-notion-accent transition-all duration-500"
-                          style={{ width: `${taskCounts[project.id].done / taskCounts[project.id].total * 100}%` }}
-                        />
-                      </div>
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h3 className="font-semibold text-sm text-text truncate group-hover:text-accent transition-colors">{project.name}</h3>
+                      <Badge color={statusColor(project.status)} className="capitalize flex-shrink-0">{project.status}</Badge>
                     </div>
-                  )}
-                  <div className="mt-3 pt-3 border-t border-notion-border flex items-center justify-between text-[11px] text-notion-text-muted">
-                    <span>Created {formatDateShort(project.created_at)}</span>
-                    {taskCounts[project.id]?.total ? <span>{taskCounts[project.id].total} task{taskCounts[project.id].total !== 1 ? 's' : ''}</span> : <span>0 tasks</span>}
+                    {taskCounts[project.id] && taskCounts[project.id].total > 0 && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-[11px] mb-1.5">
+                          <span className="text-text-muted">{taskCounts[project.id].done}/{taskCounts[project.id].total} done</span>
+                          <span className="font-semibold text-accent">{Math.round(taskCounts[project.id].done / taskCounts[project.id].total * 100)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-bg-secondary overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-accent to-purple transition-all duration-700"
+                            style={{ width: `${taskCounts[project.id].done / taskCounts[project.id].total * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-[11px] text-text-muted">
+                      <span>Created {formatDateShort(project.created_at)}</span>
+                      {taskCounts[project.id]?.total ? <span>{taskCounts[project.id].total} task{taskCounts[project.id].total !== 1 ? 's' : ''}</span> : <span>0 tasks</span>}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -302,7 +309,7 @@ export default function ProjectsPage() {
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-text-secondary">Describe your project</label>
             <textarea
-              className="block w-full rounded-xl border border-border bg-white dark:bg-notion-bg-secondary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[120px] transition-all duration-150"
+              className="block w-full rounded-xl border border-border bg-white dark:bg-surface px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:border-accent/40 focus:outline-none focus:ring-2 focus:ring-accent/10 min-h-[120px] transition-all duration-150"
               value={newDesc}
               onChange={e => setNewDesc(e.target.value)}
               placeholder="Example: Build a landing page for my SaaS startup with pricing, features, and a contact form."
@@ -315,7 +322,7 @@ export default function ProjectsPage() {
               onClick={() => fileInputRef.current?.click()}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) handlePhotoSelect(e.dataTransfer.files[0]) }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-notion-text-secondary hover:bg-notion-bg-hover hover:border-notion-border-hover transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-xs text-text-secondary hover:bg-bg-hover hover:border-border-hover transition-all cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -333,10 +340,10 @@ export default function ProjectsPage() {
               type="button"
               onClick={handleVoiceInput}
               disabled={isRecording}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs transition-all ${
                 isRecording
-                  ? 'border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 animate-pulse'
-                  : 'border-border text-notion-text-secondary hover:bg-notion-bg-hover hover:border-notion-border-hover'
+                  ? 'border-danger/40 bg-danger-soft text-danger animate-pulse'
+                  : 'border-border text-text-secondary hover:bg-bg-hover hover:border-border-hover'
               }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -348,10 +355,10 @@ export default function ProjectsPage() {
 
           {photoPreview && (
             <div className="relative rounded-xl overflow-hidden border border-border">
-              <img src={photoPreview} alt="Upload preview" className="max-h-48 w-full object-contain bg-notion-bg-secondary" />
+              <img src={photoPreview} alt="Upload preview" className="max-h-48 w-full object-contain bg-bg-secondary" />
               <button
                 onClick={() => { setPhotoFile(null); setPhotoPreview(null); setPhotoBase64(null) }}
-                className="absolute top-2 right-2 p-1 rounded bg-black/50 text-white hover:bg-black/70 transition-colors"
+                className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -360,25 +367,25 @@ export default function ProjectsPage() {
             </div>
           )}
 
-          <p className="text-xs text-notion-text-muted">AI will research your project, analyze photos, and create tasks with step-by-step instructions.</p>
+          <p className="text-xs text-text-muted">AI will research your project, analyze photos, and create tasks with step-by-step instructions.</p>
 
           <div className="flex gap-2 mt-1">
             <button
               onClick={() => { setShowTemplates(true); setShowCreate(false) }}
-              className="text-xs text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover px-2 py-1 rounded transition-colors"
+              className="text-xs text-text-muted hover:text-text hover:bg-bg-hover px-2 py-1 rounded-lg transition-colors"
             >
               From template
             </button>
             <button
               onClick={() => { setShowSlackParse(true); setShowCreate(false) }}
-              className="text-xs text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover px-2 py-1 rounded transition-colors"
+              className="text-xs text-text-muted hover:text-text hover:bg-bg-hover px-2 py-1 rounded-lg transition-colors"
             >
               Import email/Slack
             </button>
           </div>
           {aiLoading && progressMsg && (
-            <div className="flex items-center gap-2 text-sm text-brand-600">
-              <span className="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-2 text-sm text-accent font-medium">
+              <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               {progressMsg}
             </div>
           )}
@@ -392,8 +399,8 @@ export default function ProjectsPage() {
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {templates.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-sm text-notion-text-muted mb-2">No templates yet</p>
-              <p className="text-xs text-notion-text-muted">Save a project as a template to get started</p>
+              <p className="text-sm text-text-muted mb-2">No templates yet</p>
+              <p className="text-xs text-text-muted">Save a project as a template to get started</p>
             </div>
           ) : templates.map(t => (
             <button
@@ -429,17 +436,17 @@ export default function ProjectsPage() {
                 toast.success(`Project created from "${t.name}" template!`)
                 router.push(`/projects/${project.id}`)
               }}
-              className="w-full text-left p-3 rounded-xl border border-border hover:border-brand-300 hover:bg-brand-50/50 transition-all"
+              className="w-full text-left p-4 rounded-xl border border-border hover:border-accent/20 hover:bg-accent-soft/50 transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-text-primary">{t.name}</span>
-                  <span className="ml-2 text-xs text-notion-text-muted capitalize">({t.category})</span>
+                  <span className="text-sm font-medium text-text group-hover:text-accent transition-colors">{t.name}</span>
+                  <span className="ml-2 text-xs text-text-muted capitalize">({t.category})</span>
                 </div>
-                <span className="text-xs text-notion-text-muted">{t.usage_count} uses</span>
+                <span className="text-xs text-text-muted bg-bg-secondary px-2 py-0.5 rounded-full">{t.usage_count} uses</span>
               </div>
-              {t.description && <p className="text-xs text-notion-text-secondary mt-1 line-clamp-1">{t.description}</p>}
-              <p className="text-xs text-notion-text-muted mt-1">{t.phases.length} phases &middot; {t.tasks.length} tasks</p>
+              {t.description && <p className="text-xs text-text-secondary mt-1.5 line-clamp-1">{t.description}</p>}
+              <p className="text-xs text-text-muted mt-1.5">{t.phases.length} phases &middot; {t.tasks.length} tasks</p>
             </button>
           ))}
         </div>
@@ -450,7 +457,7 @@ export default function ProjectsPage() {
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-text-secondary">Paste email or Slack message</label>
             <textarea
-              className="block w-full rounded-xl border border-border bg-white dark:bg-notion-bg-secondary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[180px] transition-all duration-150"
+              className="block w-full rounded-xl border border-border bg-white dark:bg-surface px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:border-accent/40 focus:outline-none focus:ring-2 focus:ring-accent/10 min-h-[180px] transition-all duration-150"
               value={slackInput}
               onChange={e => setSlackInput(e.target.value)}
               placeholder="Paste an email thread, Slack message, or meeting notes here...&#10;&#10;Example:&#10;'Hey team, we need to build a landing page this sprint.&#10;Tasks:&#10;- Design homepage mockup&#10;- Set up contact form&#10;- Write copy for about page&#10;- Deploy to Vercel'"
@@ -458,8 +465,8 @@ export default function ProjectsPage() {
             />
           </div>
           {slackLoading && (
-            <div className="flex items-center gap-2 text-sm text-brand-600">
-              <span className="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-2 text-sm text-accent font-medium">
+              <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               AI is extracting tasks...
             </div>
           )}

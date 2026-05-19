@@ -43,38 +43,22 @@ export function Sidebar() {
   }, [])
 
   return (
-    <aside className="hidden lg:flex lg:flex-col w-60 bg-notion-sidebar border-r border-notion-border">
-      <div className="px-4 py-3 border-b border-notion-border">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-notion-text flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <aside className="hidden lg:flex lg:flex-col w-56 bg-sidebar border-r border-border">
+      <div className="px-4 py-4 border-b border-border">
+        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-accent to-purple flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <span className="text-sm font-semibold text-notion-text">SnapTask</span>
+          <div>
+            <span className="text-sm font-semibold text-text">SnapTask</span>
+            {org && <p className="text-[10px] text-text-muted leading-tight">{org.name}</p>}
+          </div>
         </Link>
       </div>
 
-      <div className="px-2 py-2 border-b border-notion-border flex items-center justify-between">
-        <NotificationBell />
-        <button
-          onClick={toggleTheme}
-          className="p-1.5 rounded text-notion-text-muted hover:text-notion-text hover:bg-notion-bg-hover transition-colors"
-          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          )}
-        </button>
-      </div>
-
-      <nav className="flex-1 px-2 py-2 space-y-0.5">
+      <nav className="flex-1 px-2 py-3 space-y-0.5">
         {navItems.map(item => {
           const active = pathname.startsWith(item.href)
           return (
@@ -82,30 +66,49 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-all duration-150',
+                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-150 group',
                 active
-                  ? 'bg-notion-bg-selected text-notion-text font-medium'
-                  : 'text-notion-text-secondary hover:bg-notion-bg-hover hover:text-notion-text',
+                  ? 'bg-accent-soft text-accent font-medium'
+                  : 'text-text-secondary hover:bg-bg-hover hover:text-text',
               )}
             >
-              <svg className={cn('w-4 h-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-110', active ? 'text-notion-text' : 'text-notion-text-muted')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className={cn('w-4 h-4 flex-shrink-0 transition-all duration-150', active ? 'text-accent' : 'text-text-muted group-hover:text-text')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
               </svg>
               {item.label}
+              {active && <span className="ml-auto w-1 h-4 rounded-full bg-accent" />}
             </Link>
           )
         })}
       </nav>
 
-      <div className="px-2 py-2 border-t border-notion-border">
+      <div className="px-2 py-2 border-t border-border">
+        <div className="flex items-center justify-between px-3 py-2">
+          <NotificationBell />
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-xl text-text-muted hover:bg-bg-hover hover:text-text transition-all duration-150"
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            )}
+          </button>
+        </div>
         {profile && (
-          <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded hover:bg-notion-bg-hover transition-colors cursor-default">
-            <div className="w-6 h-6 rounded bg-notion-bg-hover flex items-center justify-center text-xs font-medium text-notion-text flex-shrink-0">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-bg-hover transition-colors cursor-default mt-1">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-brand-400 to-accent flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
               {profile.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-notion-text truncate leading-tight">{profile.name}</p>
-              <p className="text-xs text-notion-text-muted truncate leading-tight">{org?.name || ''}</p>
+              <p className="text-sm text-text truncate leading-tight font-medium">{profile.name}</p>
+              <p className="text-[10px] text-text-muted truncate leading-tight">{org?.name || ''}</p>
             </div>
           </div>
         )}

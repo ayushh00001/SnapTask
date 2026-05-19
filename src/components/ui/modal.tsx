@@ -35,26 +35,27 @@ export function Modal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
-      <div className="fixed inset-0 bg-[#37352f]/60 animate-fade-in" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]">
+      <div className="fixed inset-0 bg-overlay animate-fade-in" onClick={onClose} />
       <div className={cn(
-        'relative bg-notion-bg max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl animate-scale-in',
+        'relative bg-card border border-border/50 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl animate-scale-in',
+        'backdrop-blur-xl',
         className,
       )}>
         {title && (
-          <div className="flex items-start justify-between px-5 py-4 border-b border-notion-border">
+          <div className="flex items-start justify-between px-6 py-4 border-b border-border">
             <div>
-              <h2 className="text-sm font-semibold text-notion-text">{title}</h2>
-              {subtitle && <p className="text-xs text-notion-text-secondary mt-0.5">{subtitle}</p>}
+              <h2 className="text-base font-semibold text-text">{title}</h2>
+              {subtitle && <p className="text-xs text-text-secondary mt-0.5">{subtitle}</p>}
             </div>
-            <button onClick={onClose} className="p-1 rounded text-notion-text-muted hover:bg-notion-bg-hover hover:text-notion-text transition-colors -mr-1 -mt-1">
+            <button onClick={onClose} className="p-1.5 rounded-xl text-text-muted hover:bg-bg-hover hover:text-text transition-colors -mr-1.5 -mt-1.5">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         )}
-        <div className="p-5">{children}</div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   )
