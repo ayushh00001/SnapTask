@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
@@ -265,7 +266,7 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project, i) => (
-            <button key={project.id} onClick={() => router.push(`/projects/${project.id}`)} className="text-left group animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
+            <Link key={project.id} href={`/projects/${project.id}`} className="block group animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
               <Card className="h-full hover:shadow-lg hover:-translate-y-0.5">
                 <CardContent className="p-0">
                   {project.photo_url && (
@@ -363,7 +364,7 @@ export default function ProjectsPage() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+            </Link>
             </div>
           )}
 

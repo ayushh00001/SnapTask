@@ -1,16 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import type { ProjectTask, Profile } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { TaskDetailModal } from './task-detail-modal'
 import { isOverdue, formatDateShort, getInitials, priorityColor, cn } from '@/lib/utils'
 
 export function TaskCard({
   task,
   members,
   onDelete,
-  onUpdate,
   onClick,
   isTimerRunning,
   onStartTimer,
@@ -19,19 +16,14 @@ export function TaskCard({
   task: ProjectTask
   members: Profile[]
   onDelete: (id: string) => void
-  onUpdate: () => void
-  onClick?: (task: ProjectTask) => void
+  onClick: (task: ProjectTask) => void
   isTimerRunning?: boolean
   onStartTimer?: (id: string) => void
   onStopTimer?: (id: string) => void
 }) {
-  const [showDetail, setShowDetail] = useState(false)
   const assignee = task.assignee_id ? members.find(m => m.id === task.assignee_id) : null
 
-  const handleClick = () => {
-    if (onClick) onClick(task)
-    else setShowDetail(true)
-  }
+  const handleClick = () => onClick(task)
 
   const hasDependencies = task.depends_on && task.depends_on.length > 0
 
@@ -123,15 +115,6 @@ export function TaskCard({
           </div>
         )}
       </div>
-      {showDetail && (
-        <TaskDetailModal
-          task={task}
-          members={members}
-          open={showDetail}
-          onClose={() => setShowDetail(false)}
-          onUpdate={onUpdate}
-        />
-      )}
     </>
   )
 }

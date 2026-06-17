@@ -9,6 +9,7 @@ interface SearchResult {
   title: string
   type: 'project' | 'task'
   project_name?: string
+  project_id?: string
 }
 
 export function GlobalSearch() {
@@ -46,7 +47,7 @@ export function GlobalSearch() {
       ])
       const combined: SearchResult[] = [
         ...(projectsRes.data || []).map(p => ({ id: p.id, title: p.name, type: 'project' as const })),
-        ...(tasksRes.data || []).map(t => ({ id: t.id, title: t.title, type: 'task' as const })),
+        ...(tasksRes.data || []).map(t => ({ id: t.id, title: t.title, type: 'task' as const, project_id: t.project_id })),
       ]
       setResults(combined)
       setSelected(0)
@@ -57,7 +58,7 @@ export function GlobalSearch() {
   const handleSelect = (r: SearchResult) => {
     setOpen(false)
     if (r.type === 'project') router.push(`/projects/${r.id}`)
-    else router.push(`/projects/${(r as unknown as { project_id: string }).project_id || ''}`)
+    else router.push(`/projects/${r.project_id || ''}`)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

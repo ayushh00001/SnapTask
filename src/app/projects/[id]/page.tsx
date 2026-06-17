@@ -45,6 +45,7 @@ interface Milestone {
 interface TimeEntry {
   id: string
   task_id: string
+  user_id: string
   started_at: string
   ended_at: string | null
   duration_minutes: number | null
@@ -489,7 +490,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         task={task}
                         members={members}
                         onDelete={handleDeleteTask}
-                        onUpdate={() => {}}
                         onClick={() => setSelectedTask(task)}
                         isTimerRunning={!!activeTimers[task.id]}
                         onStartTimer={() => handleStartTimer(task.id)}

@@ -1,3 +1,5 @@
+'use client'
+
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +28,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, children, disabled, ...props }, ref) => (
     <button
       ref={ref}
+      type="button"
       disabled={disabled || loading}
       className={cn(
         'inline-flex items-center justify-center gap-1.5 font-medium transition-all duration-150',
