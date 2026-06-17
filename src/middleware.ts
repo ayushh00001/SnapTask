@@ -1,7 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const protectedPaths = ['/dashboard', '/projects', '/billing', '/settings', '/admin']
+const authPages = ['/login', '/signup']
+
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const isProtected = protectedPaths.some(p => pathname.startsWith(p))
+  const isAuthPage = authPages.includes(pathname)
+
   let supabaseResponse = NextResponse.next({ request })
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,17 +32,14 @@ export async function middleware(request: NextRequest) {
   )
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const protectedPaths = ['/dashboard', '/projects', '/billing', '/settings', '/admin']
-  const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
-  const isAuthPage = ['/login', '/signup'].includes(request.nextUrl.pathname)
+    data: { session },
+  } = await supabase.auth.getSession()
+  const user = session?.user
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('redirect', request.nextUrl.pathname)
+    url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
 
@@ -49,7 +53,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/dashboard/:path*', '/projects/:path*', '/billing/:path*', '/settings/:path*', '/admin/:path*', '/login', '/signup'],
 }
